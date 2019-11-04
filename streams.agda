@@ -28,12 +28,12 @@ record C : Set₁ where
     Ref : c_type → Set
     --_≃_ : ∀ { α β } → Code α → Code β → Set
     ⟨_⟩ : ℤ → Code Int
-    [] : ∀ { α } → Code (Array α 0)
-    _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
     _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
     true false : Code Bool
     _||_ _&&_ : Code Bool → Code Bool → Code Bool
     if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
+    [] : ∀ { α } → Code (Array α 0)
+    _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
     _≔_ : ∀ { α } → Ref α → Code α → Code α
     _；_ : ∀ { α β } → Code α → Code β → Code β
 
@@ -80,8 +80,6 @@ module Eval where
   C.Code impl α = State (String → ℤ) ⟦ α ⟧
   C.Ref impl α = String
   C.⟨ impl ⟩ n state = n , state
-  C.[] impl state = []ᵥ , state
-  (impl C.∷ x) y = applyOperator (_∷ᵥ_) x y
   (impl C.+ x) y = applyOperator (_+ᵢ_) x y
   (impl C.* x) y = applyOperator (_*ᵢ_) x y
   (impl C.- x) y = applyOperator (_-ᵢ_) x y
@@ -96,6 +94,8 @@ module Eval where
   (C.if impl then cond else a) b state =
     let cond' , state' = cond state in
       (If cond' then a else b) state'
+  C.[] impl state = []ᵥ , state
+  (impl C.∷ x) y = applyOperator (_∷ᵥ_) x y
   C._≔_ impl { Array α n } x y state =
     let y' , state' = y state in 
       y' , updateMapForArray x y' state'
