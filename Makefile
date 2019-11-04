@@ -3,7 +3,7 @@ all:
 	ghc                                                               \
             -package text -package ghc                           	  \
             MAlonzo/Code/Qstreams.hs                                  \
-            -main-is MAlonzo.Code.Qheterostage                        \
+            -main-is MAlonzo.Code.Qstreams                            \
             -fwarn-incomplete-patterns -fno-warn-overlapping-patterns \
             -XGADTs                                                   \
             -o streams
