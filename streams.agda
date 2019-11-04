@@ -20,7 +20,7 @@ open import Relation.Nullary.Decidable using (⌊_⌋)
 
 data c_type : Set where
   Void Char Int Bool : c_type
-  Array : c_type → (n : ℕ) → { proof : 0 Data.Nat.< n } → c_type
+  Array : c_type → (n : ℕ) → c_type
 
 record C : Set₁ where
   field
@@ -28,6 +28,8 @@ record C : Set₁ where
     Ref : c_type → Set
     --_≃_ : ∀ { α β } → Code α → Code β → Set
     ⟨_⟩ : ℤ → Code Int
+    [] : ∀ { α } → Code (Array α 0)
+    _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
     _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
     true false : Code Bool
     _||_ _&&_ : Code Bool → Code Bool → Code Bool
@@ -61,12 +63,10 @@ module Eval where
   encode { Array α n } x = int 0 -- Do not use, should be able to force this by typing...
 
   updateMapForArray :
-    ∀ { α n } → { 0<n : 0 < n } → String → ⟦ Array α n { 0<n } ⟧ → (String → ℤ) → (String → ℤ)
-  updateMapForArray {_} {ℕ.suc .0} {_} name (x ∷ᵥ []ᵥ) f var = 
-    If var == name ++ "0" then encode x
-    else f var
-  updateMapForArray {_} {ℕ.suc (ℕ.suc n)} {_} name (x ∷ᵥ y ∷ᵥ arr) f =
-    let f' = updateMapForArray {_} {ℕ.suc n} {Data.Nat.s≤s Data.Nat.z≤n} name (y ∷ᵥ arr) f in
+    ∀ { α n } → String → ⟦ Array α n ⟧ → (String → ℤ) → (String → ℤ)
+  updateMapForArray name []ᵥ = id
+  updateMapForArray {_} {ℕ.suc n} name (x ∷ᵥ arr) f =
+    let f' = updateMapForArray name arr f in
       λ var →
         If var == name ++ (Data.Nat.Show.show n)
         then encode x else f' name
@@ -80,6 +80,8 @@ module Eval where
   C.Code impl α = State (String → ℤ) ⟦ α ⟧
   C.Ref impl α = String
   C.⟨ impl ⟩ n state = n , state
+  C.[] impl state = []ᵥ , state
+  (impl C.∷ x) y = applyOperator (_∷ᵥ_) x y
   (impl C.+ x) y = applyOperator (_+ᵢ_) x y
   (impl C.* x) y = applyOperator (_*ᵢ_) x y
   (impl C.- x) y = applyOperator (_-ᵢ_) x y
@@ -94,9 +96,9 @@ module Eval where
   (C.if impl then cond else a) b state =
     let cond' , state' = cond state in
       (If cond' then a else b) state'
-  C._≔_ impl { Array α n { n>0 } } x y state =
+  C._≔_ impl { Array α n } x y state =
     let y' , state' = y state in 
-      y' , updateMapForArray {_} {_} { n>0 } x y' state'
+      y' , updateMapForArray x y' state'
   C._≔_ impl x y state =
     let y' , state' = y state in
       y' , (λ var → If var == x then (encode y') else state' var)
@@ -109,5 +111,5 @@ eval e = let v , _ = e ⦃ Eval.impl ⦄ (λ _ → int 0) in v
 
 open import IO
 main =
-  let ex = eval (⟨ int 1 ⟩ + ⟨ int 1 ⟩) in
+  let ex = eval (⟨ int 1 ⟩ + ⟨ int 10 ⟩) in
     run (IO.putStr (Data.Integer.show ex))
