@@ -1,13 +1,13 @@
 module streams where
 
-open import Data.Unit
+open import Data.Unit using (⊤)
 open import Data.Integer using (ℤ)
   renaming (_+_ to _+ᵢ_; _*_ to _*ᵢ_; _-_ to _-ᵢ_; +_ to int; _<_ to _<ᵢ_; _≤_ to _≤ᵢ_)
 open import Data.Integer.DivMod using () renaming (_div_ to _/ᵢ_)
-open import Data.Nat using (ℕ; _<_)
+open import Data.Nat using (ℕ) renaming (_<_ to _<ₙ_)
 import Data.Nat.Show
 import Data.Nat.Properties
-open import Data.String using (String; _++_; _==_)
+open import Data.String using (String; _++_) renaming (_==_ to _==ₛ_)
 import Data.Char
 import Data.Bool
 open Data.Bool using () renaming (if_then_else_ to If_then_else_)
@@ -31,12 +31,13 @@ record C : Set₁ where
     _∈_ : Code Int → ℕ → Set
     ⟨_⟩ : ℤ → Code Int
     _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
+    _<_ _≤_ _>_ _≥_ _==_ : Code Int → Code Int → Code Bool
     true false : Code Bool
     _||_ _&&_ : Code Bool → Code Bool → Code Bool
     if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
     [] : ∀ { α } → Code (Array α 0)
     _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
-    _[_] : ∀ { α n } → { 0<n : 0 < n } → Ref (Array α n) → (i : Code Int)
+    _[_] : ∀ { α n } → { 0<n : 0 <ₙ n } → Ref (Array α n) → (i : Code Int)
       → { i∈n : i ∈ n } → Ref α
     ★_ : ∀ { α } → Ref α → Code α
     _≔_ : ∀ { α } → Ref α → Code α → Code α
@@ -69,16 +70,39 @@ data CardT : Set where
   atMost1 : CardT
   many : CardT
 
+-- ProducerT (element type) (internal state) ⦃ implementation ⦄
 data ProducerT (α σ : Set) ⦃ _ : C ⦄ : Set where
+  -- for : (state → index) × (state → index → continuation → void)
   for : (σ → Code Int) × (σ → Code Int → (α → Code Void) → Code Void) → ProducerT α σ
+  -- unfolder : (state → terminated?) × cardinality × (state → continuation → void)
   unfolder : (σ → Code Bool) × CardT × (σ → (α → Code Void) → Code Void) → ProducerT α σ
 
+-- Producer (element type) ⦃ implementation ⦄
 data Producer (α : Set) ⦃ _ : C ⦄ : Set₁ where
+  -- producer : ⦃ internal state ⦄ → (initialisation function) × producer
   producer : ∀ ⦃ σ ⦄ → (∀ { ω } → (σ → Code ω) → Code ω) × (ProducerT α σ) → Producer α
 
+-- Stream (element type) ⦃ implementation ⦄
 data Stream (α : c_type) ⦃ _ : C ⦄ : Set₁ where
+  -- linear : producer of code elements
   linear : Producer (Code α) → Stream α
+  -- nested : ⦃ stream code ⦄ → (producer of stream code) × (stream code → stream)
   nested : ∀ ⦃ β ⦄ → Producer (Code β) × (Code β → Stream α) → Stream α
+
+forUnfold : ∀ ⦃ _ : C ⦄ → ∀ { α } → Producer (Code α) → Producer (Code α)
+forUnfold { α } (producer ⦃ σ = σ ⦄ (init , for (bound , index))) =
+  let init' : ∀ { ω } → ((Ref Int × σ) → Code ω) → Code ω
+      init' k = init (λ s0 → decl Int λ i → i ≔ ⟨ int 0 ⟩ ； k (i , s0))
+      term : (Ref Int × σ) → Code Bool
+      term pair = (let i , s0 = pair in (★ i) ≤ bound s0)
+      step : (Ref Int × σ) →  (Code α → Code Void) → Code Void
+      step pair k =
+        let i , s0 = pair in
+          index s0 (★ i) (λ a → i ≔ (★ i) + ⟨ int 1 ⟩ ； k a)
+  in
+    producer ⦃ σ = Ref Int × σ ⦄ (init' , unfolder (term , many , step))
+forUnfold (producer ⦃ σ = σ ⦄ (init , unfolder x)) =
+  producer ⦃ σ = σ ⦄ (init , unfolder x)
 
 ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Code (Array α n) → Stream α
 ofArr { α } { n } arr =
@@ -93,17 +117,16 @@ ofArr { α } { n } arr =
 
 -- TODO: C optionals / limited C structs
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code Bool × Code α × Code ζ) → Code ζ → Stream α
-unfold f x = linear (producer ⦃ σ = {!!} ⦄ ({!!} , unfolder ({!!} , {!!})))
-
-forUnfold : ∀ ⦃ _ : C ⦄ → ∀ { α } → Stream α → Stream α
-forUnfold (linear (producer ⦃ σ = σ ⦄ (init , for (bound , index)))) =
-  let init' k = init (λ s0 → decl Int λ i → i ≔ ⟨ int 0 ⟩ ； k (i , s0)) in
-  linear (producer ⦃ σ = Ref Int × σ ⦄ ({!!} , unfolder ({!!} , {!!})))
-forUnfold (linear (producer ⦃ σ = σ ⦄ (init , unfolder x))) =
-  linear (producer ⦃ σ = σ ⦄ (init , unfolder x))
-forUnfold (nested (producer (init , for x) , snd)) = {!!}
-forUnfold (nested (producer ⦃ σ = σ ⦄ (init , unfolder x) , f)) =
-  nested (producer ⦃ σ = σ ⦄ (init , (unfolder x)) , f)
+unfold { α } { ζ } f x =
+  let init : ∀ { ω } → (Code Bool × Code α × Code ζ → Code ω) → Code ω
+      init k = decl {!!} λ s → s ≔ {!f x!} ； k ({!★ s!})
+      term : Code Bool × Code α × Code ζ → Code Bool
+      term tuple = (let b , _ = tuple in b)
+  in
+    linear (
+      producer ⦃ σ = Code Bool × Code α × Code ζ ⦄
+        (init , unfolder (term , many , {!!}))
+    )
 
 flatMap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Stream β) → Stream α → Stream β
 flatMap {α = α} f (linear x) = nested ⦃ β = α ⦄ (x , f)
@@ -147,7 +170,7 @@ module Eval where
   updateMapForArray {_} {ℕ.suc n} name (x ∷ᵥ arr) f =
     let f' = updateMapForArray name arr f in
       λ var →
-        If var == name ++ (Data.Nat.Show.show n)
+        If var ==ₛ name ++ (Data.Nat.Show.show n)
         then encode x else f' name
 
   safediv : ℤ → ℤ → ℤ
@@ -157,7 +180,8 @@ module Eval where
 
   impl : C
   C.Code impl α = State (String → ℤ) ⟦ α ⟧
-  C.Ref impl α = String
+  C.Ref impl α = C.Code impl α
+  (impl C.∈ x) n = let x' , _ = x (λ _ → int 0) in (int 0 <ᵢ x') × (x' <ᵢ int n)
   C.⟨ impl ⟩ n state = n , state
   (impl C.+ x) y = applyOperator (_+ᵢ_) x y
   (impl C.* x) y = applyOperator (_*ᵢ_) x y
@@ -175,20 +199,16 @@ module Eval where
       (If cond' then a else b) state'
   C.[] impl state = []ᵥ , state
   (impl C.∷ x) y = applyOperator (_∷ᵥ_) x y
-  C._≔_ impl { Array α n } x y state =
-    let y' , state' = y state in 
-      y' , updateMapForArray x y' state'
-  C._≔_ impl x y state =
-    let y' , state' = y state in
-      y' , (λ var → If var == x then (encode y') else state' var)
-  (impl C.； x) y state = 
-    let x' , state' = x state in
-      y state'
+  C._[_] impl {_} {n} arr i {i<n , 0<i} state = {!!}
+  (C.★ impl) x state = {!!}
+  C._≔_ impl x y state = {!!}
+  (impl C.； x) f state = {!!}
+  C.decl impl α f state = {!!}
 
-eval : ∀ { α : c_type } → (∀ ⦃ impl : C ⦄ → Code ⦃ impl ⦄ α) → Eval.⟦ α ⟧
+eval : ∀ { α : c_type } → (∀ ⦃ impl : C ⦄ → Code ⦃ impl ⦄ α) → ⟦ α ⟧
 eval e = let v , _ = e ⦃ Eval.impl ⦄ (λ _ → int 0) in v
 
 open import IO
 main =
-  let ex = eval (⟨ int 1 ⟩ + ⟨ int 10 ⟩) in
+  let ex = eval (⟨ int 1 ⟩) in
     run (IO.putStr (Data.Integer.show ex))
