@@ -28,23 +28,27 @@ record C : Set₁ where
     Code : c_type → Set
     Ref : c_type → Set
     --_≃_ : ∀ { α β } → Code α → Code β → Set
-    _∈_ : Code Int → ℕ → Set
+    _≤_ : Code Int → Code Int → Set
     ⟨_⟩ : ℤ → Code Int
     _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
-    _<_ _≤_ _>_ _≥_ _==_ : Code Int → Code Int → Code Bool
+    _<_ _<=_ _>_ _>=_ _==_ : Code Int → Code Int → Code Bool
     true false : Code Bool
     _||_ _&&_ : Code Bool → Code Bool → Code Bool
     if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
     [] : ∀ { α } → Code (Array α 0)
     _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
-    _[_] : ∀ { α n } → { 0<n : 0 <ₙ n } → Ref (Array α n) → (i : Code Int)
-      → { i∈n : i ∈ n } → Ref α
+    _[_] : ∀ { α n } → { 0<n : ⟨ int 1 ⟩ ≤ ⟨ int n ⟩ } → Ref (Array α n) → (i : Code Int)
+      → { i∈n : ⟨ int 0 ⟩ ≤ i × i ≤ ⟨ int n ⟩ } → Ref α
     ★_ : ∀ { α } → Ref α → Code α
-    _≔_ : ∀ { α } → Ref α → Code α → Code α
+    _≔_ : ∀ { α } → Ref α → Code α → Code Void
     _；_ : ∀ { α β } → Code α → Code β → Code β
     decl : (α : c_type) → ∀ { β } → (Ref α → Code β) → Code β
+    nop : Code Void
+    for_to_then_ : (l : Code Int) → (u : Code Int) → { l≤u : l ≤ u }
+      → (Ref Int → Code Void) → Code Void
+    while_then_ : Code Bool → Code Void → Code Void
 
-  infix 0 _；_
+  infixr 0 _；_
   infix 1 if_then_else_
   infix 2 _≔_
   infix 3 _∷_
@@ -94,7 +98,7 @@ forUnfold { α } (producer ⦃ σ = σ ⦄ (init , for (bound , index))) =
   let init' : ∀ { ω } → ((Ref Int × σ) → Code ω) → Code ω
       init' k = init (λ s0 → decl Int λ i → i ≔ ⟨ int 0 ⟩ ； k (i , s0))
       term : (Ref Int × σ) → Code Bool
-      term pair = (let i , s0 = pair in (★ i) ≤ bound s0)
+      term pair = (let i , s0 = pair in (★ i) <= bound s0)
       step : (Ref Int × σ) →  (Code α → Code Void) → Code Void
       step pair k =
         let i , s0 = pair in
@@ -127,6 +131,23 @@ unfold { α } { ζ } f x =
       producer ⦃ σ = Code Bool × Code α × Code ζ ⦄
         (init , unfolder (term , many , {!!}))
     )
+
+foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Code α → Code Void) → Stream α → Code Void
+foldRaw consumer (linear (producer (init , for (bound , index)))) = 
+  init (λ sp → for ⟨ int 0 ⟩ to bound sp then λ i → index sp (★ i) consumer) -- TODO: 0 ≤ bound
+foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
+  init λ sp → if term sp then step sp consumer ； nop  else nop
+foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
+  init λ sp → while term sp then step sp consumer
+foldRaw consumer (nested (prod , f)) =
+  foldRaw (λ e → foldRaw consumer (f e)) (linear prod)
+
+fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code α → Code ζ) → Code ζ → Stream α → Code ζ
+fold { ζ = ζ } f z s =
+  decl ζ λ acc →
+  acc ≔ z ；
+  foldRaw (λ a → acc ≔ f (★ acc) a) s ；
+  ★ acc
 
 flatMap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Stream β) → Stream α → Stream β
 flatMap {α = α} f (linear x) = nested ⦃ β = α ⦄ (x , f)
@@ -181,7 +202,7 @@ module Eval where
   impl : C
   C.Code impl α = State (String → ℤ) ⟦ α ⟧
   C.Ref impl α = C.Code impl α
-  (impl C.∈ x) n = let x' , _ = x (λ _ → int 0) in (int 0 <ᵢ x') × (x' <ᵢ int n)
+  --(impl C.∈ x) n = let x' , _ = x (λ _ → int 0) in (int 0 <ᵢ x') × (x' <ᵢ int n)
   C.⟨ impl ⟩ n state = n , state
   (impl C.+ x) y = applyOperator (_+ᵢ_) x y
   (impl C.* x) y = applyOperator (_*ᵢ_) x y
