@@ -44,8 +44,7 @@ record C : Set₁ where
     _；_ : ∀ { α β } → Code α → Code β → Code β
     decl : (α : c_type) → ∀ { β } → (Ref α → Code β) → Code β
     nop : Code Void
-    for_to_then_ : (l : Code Int) → (u : Code Int) → { l≤u : l ≤ u }
-      → (Ref Int → Code Void) → Code Void
+    for_to_then_ : (l : Code Int) → (u : Code Int) → (Ref Int → Code Void) → Code Void
     while_then_ : Code Bool → Code Void → Code Void
 
   infixr 0 _；_
@@ -134,7 +133,7 @@ unfold { α } { ζ } f x =
 
 foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Code α → Code Void) → Stream α → Code Void
 foldRaw consumer (linear (producer (init , for (bound , index)))) = 
-  init (λ sp → for ⟨ int 0 ⟩ to bound sp then λ i → index sp (★ i) consumer) -- TODO: 0 ≤ bound
+  init (λ sp → for ⟨ int 0 ⟩ to bound sp then λ i → index sp (★ i) consumer)
 foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
   init λ sp → if term sp then step sp consumer ； nop  else nop
 foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
