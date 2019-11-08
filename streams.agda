@@ -90,7 +90,7 @@ data Stream (α : c_type) ⦃ _ : C ⦄ : Set₁ where
   -- linear : producer of code elements
   linear : Producer (Code α) → Stream α
   -- nested : ⦃ stream code ⦄ → (producer of stream code) × (stream code → stream)
-  nested : ∀ ⦃ β ⦄ → Producer (Code β) × (Code β → Stream α) → Stream α
+  -- nested : ∀ ⦃ β ⦄ → Producer (Code β) × (Code β → Stream α) → Stream α
 
 forUnfold : ∀ ⦃ _ : C ⦄ → ∀ { α } → Producer (Code α) → Producer (Code α)
 forUnfold { α } (producer ⦃ σ = σ ⦄ (init , for (bound , index))) =
@@ -119,16 +119,28 @@ ofArr { α } { n } arr =
     linear (producer ⦃ σ = Ref (Array α n) ⦄ (init , for (upb , index)))
 
 -- TODO: C optionals / limited C structs
-unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code Bool × Code α × Code ζ) → Code ζ → Stream α
+unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code Void × Ref Bool × Ref α × Ref ζ) → Code ζ → Stream α
 unfold { α } { ζ } f x =
-  let init : ∀ { ω } → (Code Bool × Code α × Code ζ → Code ω) → Code ω
-      init k = decl {!!} λ s → s ≔ {!f x!} ； k ({!★ s!})
-      term : Code Bool × Code α × Code ζ → Code Bool
-      term tuple = (let b , _ = tuple in b)
+  let init : ∀ { ω } → (Code Void × Ref Bool × Ref α × Ref ζ → Code ω) → Code ω
+      init k = k (f x)
+      term : Code Void × Ref Bool × Ref α × Ref ζ → Code Bool
+      term tuple = (let _ , b , _ = tuple in ★ b)
+      step : Code Void × Ref Bool × Ref α × Ref ζ → (Code α → Code Void) → Code Void
+      step s body = 
+        let c , b , a , z = s in
+        let c' , b' , a' , z' = f (★ z) in
+          c ；
+          c' ；
+          if ★ b then
+            b ≔ ★ b' ；
+            a ≔ ★ a' ；
+            z ≔ ★ z' ；
+            body (★ a')
+          else nop
   in
     linear (
-      producer ⦃ σ = Code Bool × Code α × Code ζ ⦄
-        (init , unfolder (term , many , {!!}))
+      producer ⦃ σ = Code Void × Ref Bool × Ref α × Ref ζ ⦄
+        (init , unfolder (term , many , step))
     )
 
 foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Code α → Code Void) → Stream α → Code Void
@@ -138,8 +150,8 @@ foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
   init λ sp → if term sp then step sp consumer ； nop  else nop
 foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
   init λ sp → while term sp then step sp consumer
-foldRaw consumer (nested (prod , f)) =
-  foldRaw (λ e → foldRaw consumer (f e)) (linear prod)
+--foldRaw consumer (nested (prod , f)) =
+--  foldRaw (λ e → foldRaw consumer (f e)) (linear prod) -- TODO: coinduction
 
 fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code α → Code ζ) → Code ζ → Stream α → Code ζ
 fold { ζ = ζ } f z s =
@@ -148,9 +160,26 @@ fold { ζ = ζ } f z s =
   foldRaw (λ a → acc ≔ f (★ acc) a) s ；
   ★ acc
 
+mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → (Code β → Code Void) → Code Void)
+  → Stream α → Stream β
+mapRaw tr (linear (producer ⦃ σ = σ ⦄ (init , for (bound , index)))) =
+  let index' s i k = index s i (λ e → tr e k) in
+    linear (producer ⦃ σ = σ ⦄ (init , for (bound , index')))
+mapRaw tr (linear (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step)))) =
+  let step' s k = step s (λ e → tr e k) in
+    linear (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step')))
+
+map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Code β) → Stream α → Stream β
+map { β = β } f =
+  mapRaw (λ a k →
+    decl β λ t →
+    t ≔ f a ；
+    k (★ t)
+  )
+
 flatMap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Stream β) → Stream α → Stream β
-flatMap {α = α} f (linear x) = nested ⦃ β = α ⦄ (x , f)
-flatMap f (nested ⦃ β = β ⦄ (x , g)) = nested ⦃ β = β ⦄ (x , λ a → flatMap f (g a))
+--flatMap {α = α} f (linear x) = nested ⦃ β = α ⦄ (x , f)
+--flatMap f (nested ⦃ β = β ⦄ (x , g)) = nested ⦃ β = β ⦄ (x , λ a → flatMap f (g a))
 
 filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Code α → Code Bool) → Stream α → Stream α
 filter { α = α } f = flatMap (
