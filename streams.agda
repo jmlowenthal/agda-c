@@ -18,6 +18,7 @@ open import Data.Product hiding (map)
 open import Function
 open import Relation.Nullary.Decidable using (⌊_⌋)
 import Data.Fin
+open import Agda.Builtin.Equality
 
 data c_type : Set where
   Void Char Int Bool : c_type
@@ -119,7 +120,8 @@ ofArr { α } { n } arr =
     linear (producer ⦃ σ = Ref (Array α n) ⦄ (init , for (upb , index)))
 
 -- TODO: C optionals / limited C structs
-unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code Void × Ref Bool × Ref α × Ref ζ) → Code ζ → Stream α
+unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }
+  → (Code ζ → Code Void × Ref Bool × Ref α × Ref ζ) → Code ζ → Stream α
 unfold { α } { ζ } f x =
   let init : ∀ { ω } → (Code Void × Ref Bool × Ref α × Ref ζ → Code ω) → Code ω
       init k = k (f x)
@@ -160,21 +162,24 @@ fold { ζ = ζ } f z s =
   foldRaw (λ a → acc ≔ f (★ acc) a) s ；
   ★ acc
 
-mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → (Code β → Code Void) → Code Void)
-  → Stream α → Stream β
-mapRaw tr (linear (producer ⦃ σ = σ ⦄ (init , for (bound , index)))) =
+mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → (β → Code Void) → Code Void)
+  → Producer α → Producer β
+mapRaw tr (producer ⦃ σ = σ ⦄ (init , for (bound , index))) =
   let index' s i k = index s i (λ e → tr e k) in
-    linear (producer ⦃ σ = σ ⦄ (init , for (bound , index')))
-mapRaw tr (linear (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step)))) =
+    producer ⦃ σ = σ ⦄ (init , for (bound , index'))
+mapRaw tr (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step))) =
   let step' s k = step s (λ e → tr e k) in
-    linear (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step')))
+    producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step'))
 
 map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Code β) → Stream α → Stream β
-map { β = β } f =
-  mapRaw (λ a k →
-    decl β λ t →
-    t ≔ f a ；
-    k (★ t)
+map { β = β } f (linear p) =
+  linear (
+    mapRaw (λ a k →
+      decl β λ t →
+      t ≔ f a ；
+      k (★ t)
+    )
+    p
   )
 
 flatMap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Stream β) → Stream α → Stream β
@@ -190,10 +195,49 @@ filter { α = α } f = flatMap (
     )
   ))
 
+addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Bool → Producer (Code α) → Producer (Code α)
+addToProducer new (producer ⦃ σ = σ ⦄ (init , unfolder (term , many , step))) =
+  producer ⦃ σ = σ ⦄ ((init , unfolder ((λ s → new && term s) , many , step)))
+addToProducer new (producer ⦃ σ = σ ⦄ (init , unfolder (term , atMost1 , step))) =
+  producer ⦃ σ = σ ⦄ (init , unfolder (term , atMost1 , step))
+addToProducer new (producer ⦃ σ = σ ⦄ (init , for x)) =
+  addToProducer new (forUnfold (producer ⦃ σ = σ ⦄ (init , for x)))
+
+moreTermination : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Bool → Stream α → Stream α
+moreTermination new (linear p) = linear (addToProducer new p)
+--moreTermination new (nested (p , f)) = nested (addToProducer new p , λ a → moreTermination new (f a))
+
+addNr : ∀ ⦃ _ : C ⦄ → ∀ { α σ }
+  → Code Int → (p : Producer α)
+  → { init : ∀ { ω } → (σ → Code ω) → Code ω }
+  → { x : (σ → Code Bool) × CardT × (σ → (α → Code Void) → Code Void) }
+  → ⦃ _ : p ≡ (producer ⦃ σ = σ ⦄ (init , unfolder x)) ⦄
+  → Producer (Ref Int × α)
+addNr n (producer ⦃ σ = σ ⦄ (init , unfolder (term , card , step))) =
+  let init' : ∀ { ω } → (Ref Int × σ → Code ω) → Code ω
+      init' k = init (λ s → decl Int λ nr → k (nr , s))
+      term' : CardT → Ref Int × σ → Code Bool
+      term' = λ { many (nr , s) → (★ nr) == ⟨ int 0 ⟩ && term s
+                ; atMost1 (nr , s) → term s }
+      step' nrs k =
+        let nr , s = nrs in
+          step s (λ el → k (nr , el))
+  in
+    producer ⦃ σ = Ref Int × σ ⦄ (init' , unfolder (term' card , card , step'))
+
 take : ∀ ⦃ _ : C ⦄ → Code Int → ∀ { α } → Stream α → Stream α
+take n (linear (producer ⦃ σ = σ ⦄ (init , for (bound , index)))) =
+  linear (producer ⦃ σ = σ ⦄ (
+    init , for ((λ s → if (n - ⟨ int 1 ⟩) < bound s then n - ⟨ int 1 ⟩ else bound s) , index))
+  )
+take n (linear (producer ⦃ σ = σ ⦄ (init , unfolder x))) =
+  linear (mapRaw
+    (λ nrel k → let nr , el = nrel in nr ≔ ★ nr - ⟨ int 1 ⟩ ； k el)
+    (addNr n (producer ⦃ σ = σ ⦄ (init , unfolder x)))
+  )
 
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
-iota n = {!!}
+iota n = unfold (λ n → {!nop , true , n , n + ⟨ int 1 ⟩!}) ⟨ int n ⟩
 
 --------------------------------------------------------------------------
 
