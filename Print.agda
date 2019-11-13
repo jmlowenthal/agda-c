@@ -23,6 +23,18 @@ showType Int = "int"
 showType Bool = "bool"
 showType (Array α n) = "(" ++ (showType α) ++ ")[" ++ (Data.Nat.Show.show n) ++ "]"
 
+showBasicEq : (ℕ → String) → (ℕ → ℕ × String) → (ℕ → ℕ × String)
+showBasicEq x y n =
+  let x = x n in
+  let n , y = y n in
+    n , x ++ " = " ++ y
+
+showBasicDecl : c_type → ((ℕ → String) → (ℕ → ℕ × String)) → (ℕ → ℕ × String)
+showBasicDecl α k n =
+  let var = "x" ++ (Data.Nat.Show.show n) in
+  let n , k = k (λ _ → var) (suc n) in
+    n , (showType α) ++ " " ++ var ++ ";\n" ++ k
+
 impl : C
 C.Code impl _ = ℕ → ℕ × String -- Variable index start → code
 C.Ref impl _ = ℕ → String
@@ -55,28 +67,42 @@ C._[_] impl arr i n =
   let arr = arr n in
     "(" ++ arr ++ "[" ++ i ++ "])"
 C.★_ impl x n = let x = x n in n , x
-C._≔_ impl x y n =
-  let n , y = y n in
+C._≔_ impl {Void} = showBasicEq
+C._≔_ impl {Char} = showBasicEq
+C._≔_ impl {Int} = showBasicEq
+C._≔_ impl {Bool} = showBasicEq
+C._≔_ impl {Array _ _} x y n =
   let x = x n in
-    n , x ++ " = " ++ y
+  let n , y = y n in
+    n , x ++ " = {" ++ y ++ "}"
 C._；_ impl x y n =
   let n , x = x n in
   let n , y = y n in
     n , x ++ ";\n" ++ y
-C.decl impl α k n =
+C.decl impl Void = showBasicDecl Void
+C.decl impl Char = showBasicDecl Char
+C.decl impl Int = showBasicDecl Int
+C.decl impl Bool = showBasicDecl Bool
+C.decl impl (Array α len) k n =
   let var = "x" ++ (Data.Nat.Show.show n) in
   let n , k = k (λ _ → var) (suc n) in
-    n , (showType α) ++ " " ++ var ++ ";\n" ++ k
+    n , (showType α) ++ " " ++ var ++ "[" ++ (Data.Nat.Show.show len) ++ "];\n" ++ k
 C.nop impl n = n , ""
 C.for_to_then_ impl l u body n =
   let n , l = l n in
   let n , u = u n in
-  let n , body = body (λ _ → "x" ++ (Data.Nat.Show.show n)) (suc n) in
-    n , "for (int i = " ++ l ++ "; i <= " ++ u ++ "; ++i) {\n" ++ body ++ "\n}"
+  let var = "x" ++ (Data.Nat.Show.show n) in
+  let n , body = body (λ _ → var) (suc n) in
+    n ,
+    "for (int " ++ var ++ " = " ++ l ++ "; "
+        ++ var ++ " <= " ++ u ++ "; "
+        ++ "++" ++ var ++ ") {\n"
+      ++ body
+    ++ ";\n}"
 C.while_then_ impl cond body n =
   let n , cond = cond n in
   let n , body = body n in
     n , "while (" ++ cond ++ ") {\n" ++ body ++ "\n}"
 
 print : ∀ { α } → (∀ ⦃ _ : C ⦄ → Code α) → String
-print e = let _ , s = e ⦃ impl ⦄ 0 in s
+print e = let _ , s = e ⦃ impl ⦄ 0 in "int main(void) {\n" ++ s ++ "\n}\n"

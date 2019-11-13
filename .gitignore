@@ -2,4 +2,5 @@ MAlonzo/
 *.agdai
 *\#*
 *~
-main
+*.o
+*.c
