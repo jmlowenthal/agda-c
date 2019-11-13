@@ -141,6 +141,7 @@ unfold { α } { ζ } f x =
       producer ((init , unfolder (term , many , step)))
     )
 
+{-# TERMINATING #-} -- TODO: coinduction
 foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (α → Code Void) → SStream α → Code Void
 foldRaw consumer (linear (producer (init , for (bound , index)))) = 
   init (λ sp → for ⟨ int 0 ⟩ to bound sp then λ i → index sp (★ i) consumer)
@@ -149,7 +150,7 @@ foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
 foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
   init λ sp → while term sp then step sp consumer
 foldRaw consumer (nested (prod , f)) =
-  foldRaw (λ e → foldRaw consumer (f e)) (linear prod) -- TODO: coinduction
+  foldRaw (λ e → foldRaw consumer (f e)) (linear prod)
 
 fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code α → Code ζ) → Code ζ → Stream α → Code ζ
 fold { ζ = ζ } f z s =
@@ -189,6 +190,7 @@ filter { α = α } f = flatMap (
     )
   ))
 
+{-# TERMINATING #-} -- TODO
 addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Bool → Producer α → Producer α
 addToProducer new (producer (init , unfolder (term , many , step))) =
   producer ((init , unfolder ((λ s → new && term s) , many , step)))
