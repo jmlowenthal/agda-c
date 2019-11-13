@@ -1,4 +1,4 @@
-open import streams
+open import Streams
 open import Category.Monad.State using (State)
 open import Data.Vec using (Vec) renaming (_∷_ to _∷ᵥ_; [] to []ᵥ)
 
