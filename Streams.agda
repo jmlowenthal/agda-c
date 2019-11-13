@@ -1,71 +1,12 @@
-module streams where
+module Streams where
+
+open import C
+open C.C ⦃ ... ⦄
 
 open import Data.Unit using (⊤)
-open import Data.Integer using (ℤ)
-  renaming (_+_ to _+ᵢ_; _*_ to _*ᵢ_; _-_ to _-ᵢ_; +_ to int; _<_ to _<ᵢ_; _≤_ to _≤ᵢ_)
-open import Data.Integer.DivMod using () renaming (_div_ to _/ᵢ_)
+open import Data.Integer using (ℤ) renaming (+_ to int)
 open import Data.Nat using (ℕ) renaming (_<_ to _<ₙ_)
-import Data.Nat.Show
-import Data.Nat.Properties
-open import Data.String using (String; _++_) renaming (_==_ to _==ₛ_)
-import Data.Char
-import Data.Bool
-open Data.Bool using () renaming (if_then_else_ to If_then_else_)
-import Data.List
-open import Data.Vec using (Vec) renaming (_∷_ to _∷ᵥ_; [] to []ᵥ)
-open import Category.Monad.State using (State)
-open import Data.Product hiding (map)
-open import Function
-open import Relation.Nullary.Decidable using (⌊_⌋)
-import Data.Fin
-open import Agda.Builtin.Equality
-
-data c_type : Set where
-  Void Char Int Bool : c_type
-  Array : c_type → (n : ℕ) → c_type
-
-record C : Set₁ where
-  field
-    Code : c_type → Set
-    Ref : c_type → Set
-    --_≃_ : ∀ { α β } → Code α → Code β → Set
-    --_≤_ : Code Int → Code Int → Set
-    ⟨_⟩ : ℤ → Code Int
-    _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
-    _<_ _<=_ _>_ _>=_ _==_ : Code Int → Code Int → Code Bool
-    true false : Code Bool
-    _||_ _&&_ : Code Bool → Code Bool → Code Bool
-    if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
-    [] : ∀ { α } → Code (Array α 0)
-    _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
-    _[_] : ∀ { α n } → Ref (Array α n) → (i : Code Int) → Ref α
-    ★_ : ∀ { α } → Ref α → Code α
-    _≔_ : ∀ { α } → Ref α → Code α → Code Void
-    _；_ : ∀ { α β } → Code α → Code β → Code β
-    decl : (α : c_type) → ∀ { β } → (Ref α → Code β) → Code β
-    nop : Code Void
-    for_to_then_ : (l : Code Int) → (u : Code Int) → (Ref Int → Code Void) → Code Void
-    while_then_ : Code Bool → Code Void → Code Void
-
-  infixr 0 _；_
-  infix 1 if_then_else_
-  infix 2 _≔_
-  infix 3 _∷_
-  infix 4 _/_
-  infix 5 _*_
-  infix 6 _+_
-  infix 7 _-_
-  infix 8 ★_ _||_ _&&_
-  infix 9 _[_]
-
-open C ⦃ ... ⦄
-
-⟦_⟧ : c_type → Set
-⟦ Void ⟧ = ⊤
-⟦ Char ⟧ = Data.Char.Char
-⟦ Int ⟧ = ℤ
-⟦ Bool ⟧ = Data.Bool.Bool
-⟦ Array α n ⟧ = Vec ⟦ α ⟧ n -- reversed order
+open import Data.Product using (_×_ ; _,_)
 
 -- Stream Fusion, to Completeness ----------------------------------------
 
@@ -241,69 +182,6 @@ take n (nested { β = α } (p , f)) =
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 iota n = unfold (λ n → true , n , n + ⟨ int 1 ⟩) ⟨ int n ⟩
 
---------------------------------------------------------------------------
+_▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α } → ∀ { β : Set } → Stream α → (Stream α → β) → β
+x ▹ f = f x 
 
-module Eval where
-
-  applyOperator : ∀ { α β γ Γ : Set } → (α → β → γ) → State Γ α → State Γ β → State Γ γ
-  applyOperator f x y state =
-    let x' , state' = x state in
-    let y' , state'' = y state' in
-      f x' y' , state''
-
-  encode : ∀ { α : c_type } → ⟦ α ⟧ → ℤ
-  encode { Void } _ = int 0
-  encode { Char } = int ∘ Data.Char.toℕ
-  encode { Int } = id
-  encode { Bool } Data.Bool.false = int 0
-  encode { Bool } Data.Bool.true = int 1
-  encode { Array α n } x = int 0 -- Do not use, should be able to force this by typing...
-
-  updateMapForArray :
-    ∀ { α n } → String → ⟦ Array α n ⟧ → (String → ℤ) → (String → ℤ)
-  updateMapForArray name []ᵥ = id
-  updateMapForArray {_} {ℕ.suc n} name (x ∷ᵥ arr) f =
-    let f' = updateMapForArray name arr f in
-      λ var →
-        If var ==ₛ name ++ (Data.Nat.Show.show n)
-        then encode x else f' name
-
-  safediv : ℤ → ℤ → ℤ
-  safediv x (int 0) = int 0
-  safediv x Data.Integer.+[1+ n ] = x /ᵢ (Data.Integer.+[1+ n ])
-  safediv x (ℤ.negsuc n) = x /ᵢ (ℤ.negsuc n)
-
-  impl : C
-  C.Code impl α = State (String → ℤ) ⟦ α ⟧
-  C.Ref impl α = C.Code impl α
-  --(impl C.∈ x) n = let x' , _ = x (λ _ → int 0) in (int 0 <ᵢ x') × (x' <ᵢ int n)
-  C.⟨ impl ⟩ n state = n , state
-  (impl C.+ x) y = applyOperator (_+ᵢ_) x y
-  (impl C.* x) y = applyOperator (_*ᵢ_) x y
-  (impl C.- x) y = applyOperator (_-ᵢ_) x y
-  (impl C./ x) y state = 
-    let x' , state' = x state in
-    let y' , state'' = y state' in
-      (safediv x' y') , state''
-  C.true impl state = Data.Bool.true , state
-  C.false impl state = Data.Bool.false , state
-  (impl C.|| x) y = applyOperator Data.Bool._∨_ x y
-  (impl C.&& x) y = applyOperator Data.Bool._∧_ x y
-  (C.if impl then cond else a) b state =
-    let cond' , state' = cond state in
-      (If cond' then a else b) state'
-  C.[] impl state = []ᵥ , state
-  (impl C.∷ x) y = applyOperator (_∷ᵥ_) x y
-  C._[_] impl {_} {n} arr i state = {!!}
-  (C.★ impl) x state = {!!}
-  C._≔_ impl x y state = {!!}
-  (impl C.； x) f state = {!!}
-  C.decl impl α f state = {!!}
-
-eval : ∀ { α : c_type } → (∀ ⦃ impl : C ⦄ → Code ⦃ impl ⦄ α) → ⟦ α ⟧
-eval e = let v , _ = e ⦃ Eval.impl ⦄ (λ _ → int 0) in v
-
-open import IO
-main =
-  let ex = eval (⟨ int 1 ⟩) in
-    run (IO.putStr (Data.Integer.show ex))

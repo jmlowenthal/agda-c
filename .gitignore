@@ -1,3 +1,5 @@
 MAlonzo/
 *.agdai
 streams
+*\#*
+*~
