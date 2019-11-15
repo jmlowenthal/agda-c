@@ -57,11 +57,6 @@ C.if_then_else_ impl cond t f n =
   let n , t = t n in
   let n , f = f n in
     n , "if (" ++ cond ++ ") { " ++ t ++ " } else { " ++ f ++ " }"
-C.[] impl n = n , "{}"
-C._∷_ impl x y n =
-  let n , x = x n in
-  let n , y = y n in
-    n , (If (y ==ₛ "{}") Then x Else (x ++ ", " ++ y))
 C._[_] impl arr i n =
   let n , i = i n in
   let arr = arr n in

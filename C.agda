@@ -19,8 +19,6 @@ record C : Set₁ where
     true false : Code Bool
     _||_ _&&_ : Code Bool → Code Bool → Code Bool
     if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
-    [] : ∀ { α } → Code (Array α 0)
-    _∷_ : ∀ { α n } → Code α → Code (Array α n) → Code (Array α (ℕ.suc n))
     _[_] : ∀ { α n } → Ref (Array α n) → (i : Code Int) → Ref α
     ★_ : ∀ { α } → Ref α → Code α
     _≔_ : ∀ { α } → Ref α → Code α → Code Void
@@ -33,7 +31,6 @@ record C : Set₁ where
   infixr 0 _；_
   infix 1 if_then_else_
   infix 2 _≔_
-  infix 3 _∷_
   infix 4 _/_
   infix 5 _*_
   infix 6 _+_

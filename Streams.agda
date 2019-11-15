@@ -5,8 +5,10 @@ open C.C ⦃ ... ⦄
 
 open import Data.Unit using (⊤)
 open import Data.Integer using (ℤ) renaming (+_ to int)
-open import Data.Nat using (ℕ) renaming (_<_ to _<ₙ_)
+open import Data.Nat using (ℕ) renaming (_<_ to _<ₙ_ ; _≤_ to _≤ₙ_ ; _∸_ to _-ₙ_)
 open import Data.Product using (_×_ ; _,_)
+open import Data.Vec using (Vec)
+open import Data.Nat.Properties
 
 -- Stream Fusion, to Completeness ----------------------------------------
 
@@ -51,10 +53,16 @@ forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
 forUnfold (producer (init , unfolder x)) =
   producer (init , unfolder x)
 
-ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Code (Array α n) → Stream α
-ofArr { α } { n } arr =
+ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Code α) m → Code Void
+ofArrRaw _ Vec.[] = nop
+ofArrRaw {α} {n} {ℕ.suc m} {m+1≤n} x (Vec._∷_ h t) =
+  (x [ ⟨ int (n -ₙ m) ⟩ ]) ≔ h ；
+  ofArrRaw {m≤n = ≤-trans (n≤1+n m) m+1≤n} x t
+
+ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Code α) n → Stream α
+ofArr { α } { n } vec =
   let init : ∀ { ω } → (Ref (Array α n) → Code ω) → Code ω
-      init k = decl (Array α n) λ x → x ≔ arr ； k x
+      init k = decl (Array α n) λ x → ofArrRaw {m≤n = ≤-refl} x vec ； k x
       upb : ∀ { m } → Ref (Array α m) → Code Int
       upb { m } _ = ⟨ int m ⟩
       index : ∀ { m } → Ref (Array α m) → Code Int → (Code α → Code Void) → Code Void
