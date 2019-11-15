@@ -11,7 +11,6 @@ record C : Set₁ where
   field
     Code : c_type → Set
     Ref : c_type → Set
-    --_≃_ : ∀ { α β } → Code α → Code β → Set
     --_≤_ : Code Int → Code Int → Set
     ⟨_⟩ : ℤ → Code Int
     _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
