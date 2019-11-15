@@ -128,12 +128,12 @@ map { β = β } f =
     k (★ t)
   )
 
-flatMap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → SStream β) → SStream α → SStream β
-flatMap {α = α} f (linear x) = nested (x , f)
-flatMap f (nested (x , g)) = nested (x , λ a → flatMap f (g a))
+flatmap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → SStream β) → SStream α → SStream β
+flatmap {α = α} f (linear x) = nested (x , f)
+flatmap f (nested (x , g)) = nested (x , λ a → flatmap f (g a))
 
 filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Code α → Code Bool) → Stream α → Stream α
-filter { α = α } f = flatMap (
+filter { α = α } f = flatmap (
   λ x → linear (
     producer (
       (λ k → k x)
