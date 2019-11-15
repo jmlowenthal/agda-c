@@ -7,7 +7,7 @@ open import Data.Unit using (⊤)
 open import Data.Integer using (ℤ) renaming (+_ to int)
 open import Data.Nat using (ℕ) renaming (_<_ to _<ₙ_ ; _≤_ to _≤ₙ_ ; _∸_ to _-ₙ_)
 open import Data.Product using (_×_ ; _,_)
-open import Data.Vec using (Vec)
+open import Data.Vec using (Vec; _∷_; [])
 open import Data.Nat.Properties
 
 -- Stream Fusion, to Completeness ----------------------------------------
@@ -55,9 +55,11 @@ forUnfold (producer (init , unfolder x)) =
 
 ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Code α) m → Code Void
 ofArrRaw _ Vec.[] = nop
-ofArrRaw {α} {n} {ℕ.suc m} {m+1≤n} x (Vec._∷_ h t) =
-  (x [ ⟨ int (n -ₙ m) ⟩ ]) ≔ h ；
-  ofArrRaw {m≤n = ≤-trans (n≤1+n m) m+1≤n} x t
+ofArrRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
+  x [ ⟨ int (n -ₙ 1) ⟩ ] ≔ h
+ofArrRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ ∷ t) =
+  x [ ⟨ int (n -ₙ (ℕ.suc m)) ⟩ ] ≔ h₁ ；
+  ofArrRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
 
 ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Code α) n → Stream α
 ofArr { α } { n } vec =
