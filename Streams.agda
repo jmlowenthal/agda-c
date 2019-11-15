@@ -187,6 +187,9 @@ take n (nested { β = α } (p , f)) =
           (moreTermination ((★ nr) == ⟨ int 0 ⟩) (f a))
   )
 
+-- TODO: drop
+-- TODO: zip or zipWith?
+
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 iota n = unfold (λ n → true , n , n + ⟨ int 1 ⟩) ⟨ int n ⟩
 
