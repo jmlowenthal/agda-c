@@ -4,6 +4,7 @@ open import Print
 open import Data.String
 open import IO
 open import Data.Integer using (+_)
+open import Data.Vec
 
 module Main where
 
