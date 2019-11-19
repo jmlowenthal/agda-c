@@ -195,6 +195,7 @@ take n (nested { β = α } (p , f)) =
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 iota n = unfold (λ n → true , n , n + ⟨ int 1 ⟩) ⟨ int n ⟩
 
-_▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α } → ∀ { β : Set } → Stream α → (Stream α → β) → β
+_▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α n } → ∀ { β : Set n } → Stream α → (Stream α → β) → β
 x ▹ f = f x 
 
+infixl 0 _▹_
