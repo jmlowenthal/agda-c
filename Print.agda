@@ -11,7 +11,7 @@ module Print where
 open C.C ⦃ ... ⦄
 
 showReturn : String → 𝔹 → String
-showReturn s b = If b Then ("return " ++ s ++ ";") Else s
+showReturn s b = If b Then ("return " ++ s) Else s
 
 showOp : String → (ℕ → ℕ × (𝔹 → String)) → (ℕ → ℕ × (𝔹 → String)) → (ℕ → ℕ × (𝔹 → String))
 showOp op x y n =
@@ -104,4 +104,4 @@ C.while_then_ impl cond body n =
     n , λ b → "while (" ++ cond ++ ") {\n" ++ body b ++ "\n}"
 
 print : ∀ { α } → (∀ ⦃ _ : C ⦄ → Code α) → String
-print e = let _ , s = e ⦃ impl ⦄ 0 in "int main(void) {\n" ++ (s 𝔹.true) ++ "\n}\n"
+print e = let _ , s = e ⦃ impl ⦄ 0 in "int main(void) {\n" ++ (s 𝔹.true) ++ ";\n}\n"
