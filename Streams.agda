@@ -58,7 +58,7 @@ ofArrRaw _ Vec.[] = nop
 ofArrRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
   x [ ⟨ int (n -ₙ 1) ⟩ ] ≔ h
 ofArrRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ ∷ t) =
-  x [ ⟨ int (n -ₙ (ℕ.suc m)) ⟩ ] ≔ h₁ ；
+  x [ ⟨ int (n -ₙ (ℕ.suc m) -ₙ 1) ⟩ ] ≔ h₁ ；
   ofArrRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
 
 ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Code α) n → Stream α
@@ -66,7 +66,7 @@ ofArr { α } { n } vec =
   let init : ∀ { ω } → (Ref (Array α n) → Code ω) → Code ω
       init k = decl (Array α n) λ x → ofArrRaw {m≤n = ≤-refl} x vec ； k x
       upb : ∀ { m } → Ref (Array α m) → Code Int
-      upb { m } _ = ⟨ int m ⟩
+      upb { m } _ = ⟨ int (m -ₙ 1) ⟩
       index : ∀ { m } → Ref (Array α m) → Code Int → (Code α → Code Void) → Code Void
       index arr i k = decl α λ el → el ≔ ★ (arr [ i ]) ； k (★ el) -- TODO: requires i ∈ n
   in
