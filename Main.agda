@@ -17,5 +17,5 @@ sum : ∀ ⦃ _ : C.C ⦄ → Stream C.Int → Code C.Int
 sum = fold (λ x y → x + y) ⟨ + 0 ⟩
 
 main =
-  let ex = print (ofArr (⟨ + 1 ⟩ ∷ ⟨ + 2 ⟩ ∷ ⟨ + 3 ⟩ ∷ []) ▹ square ▹ sum) in
+  let ex = print (nat 4 ▹ square ▹ sum) in
      run (IO.putStr ex)
