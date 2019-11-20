@@ -74,19 +74,25 @@ ofArr { α } { n } vec =
 
 -- TODO: C optionals / limited C structs
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }
-  → (Code ζ → Code Bool × Code α × Code ζ) → Code ζ → Stream α
+  → (Code ζ → (Code Bool × Code α × Code ζ)) → Code ζ → Stream α
 unfold { α } { ζ } f x =
-  let init : ∀ { ω } → (Code Bool × Code α × Code ζ → Code ω) → Code ω
-      init k = k (f x)
-      term : Code Bool × Code α × Code ζ → Code Bool
-      term tuple = (let b , _ = tuple in b)
-      step : Code Bool × Code α × Code ζ → (Code α → Code Void) → Code Void
+  let init : ∀ { ω } → (Ref Bool × Ref α × Ref ζ → Code ω) → Code ω
+      init k =
+        let b , a , z = f x in
+          decl Bool λ u → u ≔ b ；
+          decl α λ v → v ≔ a ；
+          decl ζ λ w → w ≔ z ；
+          k (u , v , w)
+      term : Ref Bool × Ref α × Ref ζ → Code Bool
+      term tuple = (let b , _ = tuple in ★ b)
+      step : Ref Bool × Ref α × Ref ζ → (Code α → Code Void) → Code Void
       step s body = 
         let b , a , z = s in
-        let b' , a' , z' = f z in
-          if b then
-            body a'
-          else nop
+        let b' , a' , z' = f (★ z) in
+          body (★ a) ；
+          b ≔ b' ；
+          a ≔ a' ；
+          z ≔ z'
   in
     linear (
       producer ((init , unfolder (term , many , step)))
@@ -193,7 +199,10 @@ take n (nested { β = α } (p , f)) =
 -- TODO: zip or zipWith?
 
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
-iota n = unfold (λ n → true , n , n + ⟨ int 1 ⟩) ⟨ int n ⟩
+iota n = unfold (λ n → (true , n , n + ⟨ int 1 ⟩)) ⟨ int n ⟩
+
+nat : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
+nat n = unfold (λ x → (x < ⟨ int n ⟩ , x , x + ⟨ int 1 ⟩)) ⟨ int 0 ⟩
 
 _▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α n } → ∀ { β : Set n } → Stream α → (Stream α → β) → β
 x ▹ f = f x 
