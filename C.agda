@@ -4,29 +4,33 @@ open import Data.Nat using (ℕ)
 open import Data.Integer using (ℤ)
 
 data c_type : Set where
-  Void Char Int Bool : c_type
+  Char Int Bool : c_type
   Array : c_type → (n : ℕ) → c_type
 
 record C : Set₁ where
   field
-    Code : c_type → Set
+    Expr : c_type → Set
+    Statement : Set
     Ref : c_type → Set
-    --_≤_ : Code Int → Code Int → Set
-    ⟨_⟩ : ℤ → Code Int
-    _+_ _*_ _-_ _/_ : Code Int → Code Int → Code Int
-    _<_ _<=_ _>_ _>=_ _==_ : Code Int → Code Int → Code Bool
-    true false : Code Bool
-    _||_ _&&_ : Code Bool → Code Bool → Code Bool
-    if_then_else_ : ∀ { α } → Code Bool → Code α → Code α → Code α
-    _[_] : ∀ { α n } → Ref (Array α n) → (i : Code Int) → Ref α
-    ★_ : ∀ { α } → Ref α → Code α
-    _≔_ : ∀ { α } → Ref α → Code α → Code Void
-    _；_ : ∀ { α β } → Code α → Code β → Code β
-    decl : (α : c_type) → ∀ { β } → (Ref α → Code β) → Code β
-    nop : Code Void
-    for_to_then_ : (l : Code Int) → (u : Code Int) → (Ref Int → Code Void) → Code Void
-    while_then_ : Code Bool → Code Void → Code Void
+    _≡ᵉ_ : ∀ { α β } → Expr α → Expr β → Set
+    _≡_ : Statement → Statement → Set
+    _≤_ : Expr Int → Expr Int → Set
+    ⟨_⟩ : ℤ → Expr Int
+    _+_ _*_ _-_ _/_ : Expr Int → Expr Int → Expr Int
+    _<_ _<=_ _>_ _>=_ _==_ : Expr Int → Expr Int → Expr Bool
+    true false : Expr Bool
+    _||_ _&&_ : Expr Bool → Expr Bool → Expr Bool
+    if_then_else_ : Expr Bool → Statement → Statement → Statement
+    _[_] : ∀ { α n } → Ref (Array α n) → (i : Expr Int) → Ref α
+    ★_ : ∀ { α } → Ref α → Expr α
+    _≔_ : ∀ { α } → Ref α → Expr α → Statement
+    _；_ : Statement → Statement → Statement
+    decl : (α : c_type) → (Ref α → Statement) → Statement
+    nop : Statement
+    for_to_then_ : Expr Int → Expr Int → (Ref Int → Statement) → Statement
+    while_then_ : Expr Bool → Statement → Statement
 
+  infix 0 _≡_
   infixr 0 _；_
   infix 1 if_then_else_
   infix 2 _≔_

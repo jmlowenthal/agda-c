@@ -19,14 +19,14 @@ data CardT : Set where
 -- ProducerT (element type) (internal state) ⦃ implementation ⦄
 data ProducerT (α σ : Set) ⦃ _ : C ⦄ : Set where
   -- for : (state → index) × (state → index → continuation → void)
-  for : (σ → Code Int) × (σ → Code Int → (α → Code Void) → Code Void) → ProducerT α σ
+  for : (σ → Ref Int → Statement) × (σ → Expr Int → (α → Statement) → Statement) → ProducerT α σ
   -- unfolder : (state → terminated?) × cardinality × (state → continuation → void)
-  unfolder : (σ → Code Bool) × CardT × (σ → (α → Code Void) → Code Void) → ProducerT α σ
+  unfolder : (σ → Ref Bool → Statement) × CardT × (σ → (α → Statement) → Statement) → ProducerT α σ
 
 -- Producer (element type) ⦃ implementation ⦄
 data Producer (α : Set) ⦃ _ : C ⦄ : Set₁ where
   -- producer : ⦃ internal state ⦄ → (initialisation function) × producer
-  producer : ∀ { σ } → (∀ { ω } → (σ → Code ω) → Code ω) × (ProducerT α σ) → Producer α
+  producer : ∀ { σ } → ((σ → Statement) → Statement) × (ProducerT α σ) → Producer α
 
 -- Stream (element type) ⦃ implementation ⦄
 data SStream (α : Set) ⦃ _ : C ⦄ : Set₁ where
@@ -36,15 +36,19 @@ data SStream (α : Set) ⦃ _ : C ⦄ : Set₁ where
   nested : ∀ { β } → Producer β × (β → SStream α) → SStream α
 
 Stream : ∀ ⦃ _ : C ⦄ → c_type → Set₁
-Stream α = SStream (Code α)
+Stream α = SStream (Expr α)
 
 forUnfold : ∀ ⦃ _ : C ⦄ → ∀ { α } → Producer α → Producer α
 forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
-  let init' : ∀ { ω } → ((Ref Int × σ) → Code ω) → Code ω
+  let init' : ((Ref Int × σ) → Statement) → Statement
       init' k = init (λ s0 → decl Int λ i → i ≔ ⟨ int 0 ⟩ ； k (i , s0))
-      term : (Ref Int × σ) → Code Bool
-      term pair = (let i , s0 = pair in (★ i) <= bound s0)
-      step : (Ref Int × σ) →  (α → Code Void) → Code Void
+      term : (Ref Int × σ) → Ref Bool → Statement
+      term pair ref =
+        (let i , s0 = pair in
+          decl Int λ x →
+          bound s0 x ；
+          ref ≔ (★ i) <= (★ x))
+      step : (Ref Int × σ) →  (α → Statement) → Statement
       step pair k =
         let i , s0 = pair in
           index s0 (★ i) (λ a → i ≔ (★ i) + ⟨ int 1 ⟩ ； k a)
@@ -53,7 +57,7 @@ forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
 forUnfold (producer (init , unfolder x)) =
   producer (init , unfolder x)
 
-ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Code α) m → Code Void
+ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Expr α) m → Statement
 ofArrRaw _ Vec.[] = nop
 ofArrRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
   x [ ⟨ int (n -ₙ 1) ⟩ ] ≔ h
@@ -61,31 +65,31 @@ ofArrRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ �
   x [ ⟨ int (n -ₙ (ℕ.suc m) -ₙ 1) ⟩ ] ≔ h₁ ；
   ofArrRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
 
-ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Code α) n → Stream α
+ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Expr α) n → Stream α
 ofArr { α } { n } vec =
-  let init : ∀ { ω } → (Ref (Array α n) → Code ω) → Code ω
+  let init : (Ref (Array α n) → Statement) → Statement
       init k = decl (Array α n) λ x → ofArrRaw {m≤n = ≤-refl} x vec ； k x
-      upb : ∀ { m } → Ref (Array α m) → Code Int
-      upb { m } _ = ⟨ int (m -ₙ 1) ⟩
-      index : ∀ { m } → Ref (Array α m) → Code Int → (Code α → Code Void) → Code Void
+      upb : ∀ { m } → Ref (Array α m) → Ref Int → Statement
+      upb { m } _ ref = ref ≔ ⟨ int (m -ₙ 1) ⟩
+      index : ∀ { m } → Ref (Array α m) → Expr Int → (Expr α → Statement) → Statement
       index arr i k = decl α λ el → el ≔ ★ (arr [ i ]) ； k (★ el) -- TODO: requires i ∈ n
   in
     linear (producer (init , for (upb , index)))
 
 -- TODO: C optionals / limited C structs
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }
-  → (Code ζ → (Code Bool × Code α × Code ζ)) → Code ζ → Stream α
+  → (Expr ζ → (Expr Bool × Expr α × Expr ζ)) → Expr ζ → Stream α
 unfold { α } { ζ } f x =
-  let init : ∀ { ω } → (Ref Bool × Ref α × Ref ζ → Code ω) → Code ω
+  let init : (Ref Bool × Ref α × Ref ζ → Statement) → Statement
       init k =
         let b , a , z = f x in
           decl Bool λ u → u ≔ b ；
           decl α λ v → v ≔ a ；
           decl ζ λ w → w ≔ z ；
           k (u , v , w)
-      term : Ref Bool × Ref α × Ref ζ → Code Bool
-      term tuple = (let b , _ = tuple in ★ b)
-      step : Ref Bool × Ref α × Ref ζ → (Code α → Code Void) → Code Void
+      term : Ref Bool × Ref α × Ref ζ → Ref Bool → Statement
+      term tuple ref = (let b , _ = tuple in ref ≔ ★ b)
+      step : Ref Bool × Ref α × Ref ζ → (Expr α → Statement) → Statement
       step s body = 
         let b , a , z = s in
         let b' , a' , z' = f (★ z) in
@@ -99,24 +103,34 @@ unfold { α } { ζ } f x =
     )
 
 {-# TERMINATING #-} -- TODO: coinduction
-foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (α → Code Void) → SStream α → Code Void
+foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (α → Statement) → SStream α → Statement
 foldRaw consumer (linear (producer (init , for (bound , index)))) = 
-  init (λ sp → for ⟨ int 0 ⟩ to bound sp then λ i → index sp (★ i) consumer)
+  init (λ sp →
+    decl Int λ l →
+    bound sp l ；
+    for ⟨ int 0 ⟩ to ★ l then λ i → index sp (★ i) consumer)
 foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
-  init λ sp → if term sp then step sp consumer ； nop  else nop
+  init λ sp →
+    decl Bool λ cond →
+    term sp cond ；
+    if ★ cond then step sp consumer ； nop  else nop
 foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
-  init λ sp → while term sp then step sp consumer
+  init λ sp →
+    decl Bool λ cond →
+    term sp cond ；
+    while ★ cond then
+      step sp consumer ；
+      term sp cond
 foldRaw consumer (nested (prod , f)) =
   foldRaw (λ e → foldRaw consumer (f e)) (linear prod)
 
-fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Code ζ → Code α → Code ζ) → Code ζ → Stream α → Code ζ
-fold { ζ = ζ } f z s =
-  decl ζ λ acc →
+-- e.g. collectToList = fold (λ l a → a ∷ l) []
+fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Expr ζ → Expr α → Expr ζ) → Expr ζ → Stream α → (Ref ζ → Statement)
+fold { ζ = ζ } f z s acc =
   acc ≔ z ；
-  foldRaw (λ a → acc ≔ f (★ acc) a) s ；
-  ★ acc
+  foldRaw (λ a → acc ≔ f (★ acc) a) s
 
-mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → (β → Code Void) → Code Void)
+mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → (β → Statement) → Statement)
   → SStream α → SStream β
 mapRaw tr (linear (producer (init , for (bound , index)))) =
   let index' s i k = index s i (λ e → tr e k) in
@@ -126,7 +140,7 @@ mapRaw tr (linear (producer (init , unfolder (term , card , step)))) =
     linear (producer (init , unfolder (term , card , step')))
 mapRaw tr (nested (p , f)) = nested (p , (λ a → mapRaw tr (f a)))
 
-map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Code α → Code β) → Stream α → Stream β
+map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Expr α → Expr β) → Stream α → Stream β
 map { β = β } f =
   mapRaw (λ a k →
     decl β λ t →
@@ -138,35 +152,37 @@ flatmap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → SStream β) → SStrea
 flatmap {α = α} f (linear x) = nested (x , f)
 flatmap f (nested (x , g)) = nested (x , λ a → flatmap f (g a))
 
-filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Code α → Code Bool) → Stream α → Stream α
+filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Expr α → Expr Bool) → Stream α → Stream α
 filter { α = α } f = flatmap (
-  λ x → linear (
-    producer (
-      (λ k → k x)
-      , unfolder (f , atMost1 , λ a k → k a)
-    )
-  ))
+  λ x → linear (producer ((λ k → k x) , unfolder ((λ a r → r ≔ f a) , atMost1 , λ a k → k a))))
 
 {-# TERMINATING #-} -- TODO
-addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Bool → Producer α → Producer α
+addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → Producer α → Producer α
 addToProducer new (producer (init , unfolder (term , many , step))) =
-  producer ((init , unfolder ((λ s → new && term s) , many , step)))
+  producer ((init , unfolder (
+    (λ s r →
+      decl Bool λ a →
+      new a ；
+      decl Bool λ b →
+      term s b ；
+      r ≔ (★ a) && (★ b))
+    , many , step)))
 addToProducer new (producer (init , unfolder (term , atMost1 , step))) =
   producer (init , unfolder (term , atMost1 , step))
 addToProducer new (producer (init , for x)) =
   addToProducer new (forUnfold (producer (init , for x)))
 
-moreTermination : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Bool → SStream α → SStream α
+moreTermination : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → SStream α → SStream α
 moreTermination new (linear p) = linear (addToProducer new p)
 moreTermination new (nested (p , f)) =
   nested (addToProducer new p , λ a → moreTermination new (f a))
 
-addNr : ∀ ⦃ _ : C ⦄ → ∀ { α } → Code Int → (p : Producer α) → Producer (Ref Int × α)
+addNr : ∀ ⦃ _ : C ⦄ → ∀ { α } → Expr Int → (p : Producer α) → Producer (Ref Int × α)
 addNr n (producer { σ = σ } (init , unfolder (term , card , step))) =
-  let init' : ∀ { ω } → (Ref Int × σ → Code ω) → Code ω
+  let init' : (Ref Int × σ → Statement) → Statement
       init' k = init (λ s → decl Int λ nr → k (nr , s))
-      term' : CardT → Ref Int × σ → Code Bool
-      term' = λ { many (nr , s) → (★ nr) == ⟨ int 0 ⟩ && term s
+      term' : CardT → Ref Int × σ → Ref Bool → Statement
+      term' = λ { many (nr , s) → λ r → term s r ； r ≔ (★ r) && ((★ nr) == ⟨ int 0 ⟩)
                 ; atMost1 (nr , s) → term s }
       step' nrs k =
         let nr , s = nrs in
@@ -174,12 +190,22 @@ addNr n (producer { σ = σ } (init , unfolder (term , card , step))) =
   in
     producer (init' , unfolder (term' card , card , step'))
 addNr _ (producer (_ , for _)) =
-  producer ((λ k → k ⊤.tt) , for ((λ _ → ⟨ int 0 ⟩) , (λ _ _ _ → nop)))
+  producer ((λ k → k ⊤.tt) , for ((λ _ r → r ≔ ⟨ int 0 ⟩) , (λ _ _ _ → nop)))
 
-take : ∀ ⦃ _ : C ⦄ → Code Int → ∀ { α } → SStream α → SStream α
+take : ∀ ⦃ _ : C ⦄ → Expr Int → ∀ { α } → SStream α → SStream α
 take n (linear (producer (init , for (bound , index)))) =
   linear (producer (
-    init , for ((λ s → if (n - ⟨ int 1 ⟩) < bound s then n - ⟨ int 1 ⟩ else bound s) , index))
+    init , for (
+      (λ s r →
+        decl Int λ b →
+        bound s b ；
+        if ((n - ⟨ int 1 ⟩) < (★ b)) then
+          r ≔ n - ⟨ int 1 ⟩
+        else
+          r ≔ ★ b
+      )
+      , index)
+    )
   )
 take n (linear (producer (init , unfolder x))) =
   mapRaw
@@ -192,11 +218,14 @@ take n (nested { β = α } (p , f)) =
       let nr , a = nra in
         mapRaw
           (λ el k → nr ≔ ★ nr - ⟨ int 1 ⟩ ； k el)
-          (moreTermination ((★ nr) == ⟨ int 0 ⟩) (f a))
+          (moreTermination (λ r → r ≔ (★ nr) == ⟨ int 0 ⟩) (f a))
   )
 
 -- TODO: drop
 -- TODO: zip or zipWith?
+
+nil : ∀ ⦃ _ : C ⦄ → ∀ { α } → Stream α
+nil = linear (producer { σ = ⊤ } ((λ x → x ⊤.tt) , for ((λ _ _ → nop) , λ _ _ _ → nop)))
 
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 iota n = unfold (λ n → (true , n , n + ⟨ int 1 ⟩)) ⟨ int n ⟩
@@ -206,5 +235,4 @@ nat n = unfold (λ x → (x < ⟨ int n ⟩ , x , x + ⟨ int 1 ⟩)) ⟨ int 0 
 
 _▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α n } → ∀ { β : Set n } → Stream α → (Stream α → β) → β
 x ▹ f = f x 
-
 infixl 0 _▹_
