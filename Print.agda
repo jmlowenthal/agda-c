@@ -18,7 +18,6 @@ showOp : String → String → String → String
 showOp op x y = "(" ++ x ++ " " ++ op ++ " " ++ y ++ ")"
 
 showType : c_type → String
-showType Void = "void"
 showType Char = "char"
 showType Int = "int"
 showType Bool = "int"
@@ -63,7 +62,6 @@ C._；_ impl x y n =
   let n , x = x n in
   let n , y = y n in
     n , x ++ ";\n" ++ y
-C.decl impl Void = showBasicDecl Void
 C.decl impl Char = showBasicDecl Char
 C.decl impl Int = showBasicDecl Int
 C.decl impl Bool = showBasicDecl Bool
