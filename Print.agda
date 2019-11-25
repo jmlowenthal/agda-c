@@ -33,7 +33,6 @@ impl : C
 C.Expr impl _ = String -- Variable index start → code
 C.Statement impl = ℕ → ℕ × String
 C.Ref impl _ = String
-C._≤_ impl x y = ⊤
 C.⟨ impl ⟩ x = Data.Integer.show x
 C._+_ impl = showOp "+"
 C._*_ impl = showOp "*"
