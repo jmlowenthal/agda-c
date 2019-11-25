@@ -1,46 +1,14 @@
-open import Streams
-open import C
+open import Streams.Base
+open import C.Properties
 open import Function
 open import Relation.Binary
 open import Level using (0ℓ)
 open import Data.Unit
 open import Data.Product using (_×_ ; _,_)
 
-module Properties where
-
--- TODO: refactor into C.Properties and Streams.Properties
+module Streams.Properties where
 
 open C.C ⦃ ... ⦄
-
--- C properties
-
-record Equivalence ⦃ _ : C ⦄ : Set₁ where
-  field
-    _≡ₑ_ : ∀ { α } → Rel (Expr α) 0ℓ
-    _≡ₛ_ : Rel Statement 0ℓ
-  infix 0 _≡ₑ_
-  infix 0 _≡ₛ_
-
-  +-assoc : ∀ { x y z : Expr Int } → (x + y) + z ≡ₑ x + (y + z)
-
-open Equivalence ⦃ ... ⦄
-
-β-if-true : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
-  → if true then x else y ≡ₛ x
-β-if-true = {!!}
-
--- β-if-false : ∀ ⦃ _ : C ⦄ → ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
---   → if false then x else y ≡ y
--- β-if-false = {!!}
-
--- η-if : ∀ ⦃ _ : C ⦄ → ⦃ _ : Equivalence ⦄ → ∀ { cond : Expr Bool } → ∀ { e : Statement }
---   → if cond then e else e ≡ e
--- η-if = {!!}
-
--- β-while : ∀ ⦃ _ : C ⦄ → ⦃ _ : Equivalence ⦄ → ∀ { e₁ : Expr Bool } → ∀ { e₂ : Statement }
---   → while e₁ then e₂ ≡ if e₁ then (e₂ ； while e₁ then e₂) else nop
-
--- Stream properties
 
 _≡_ : ∀ ⦃ _ : C ⦄ → ∀ { α } → Rel (Stream α) 0ℓ
 _≡_ = {!!}
