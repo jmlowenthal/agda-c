@@ -20,6 +20,7 @@ gibb ℕ.zero x y = x
 gibb (ℕ.suc ℕ.zero) x y = y
 gibb (ℕ.suc (ℕ.suc m)) x y = gibb (ℕ.suc m) x y + gibb m x y
 
+-- This naive unrolling fails to terminate, since the function is not primitive-recursive
 ackermann : ∀ ⦃ _ : C ⦄ → ℕ → Expr Int → (Ref Int → Statement)
 ackermann ℕ.zero n x = x ≔ n + ⟨ + 1 ⟩
 ackermann (ℕ.suc m) n x =
@@ -29,6 +30,8 @@ ackermann (ℕ.suc m) n x =
     decl Int λ y →
     y ← ackermann (ℕ.suc m) (n - ⟨ + 1 ⟩) ；
     x ← ackermann m (★ y)
+
+-- TODO: show C-embedding is not Turing-complete by showing that we can solve the Halting Problem for the subset given (NB: no dynamic allocation or recursion means the language is not Turing-complete).
 
 square : ∀ ⦃ _ : C ⦄ → Stream C.Int → Stream C.Int
 square = map (λ x → x * x)
