@@ -83,7 +83,11 @@ record Semantics ⦃ _ : C ⦄ : Set₁ where
       → 𝒮 nop (s then k) E ↝ 𝒮 s k E
     ↝-for : ∀ { E : Env } → ∀ { k : Continuation }
       → ∀ { l u : Expr Int } → ∀ { f : Ref Int → Statement }
-      → 𝒮 (for l to u then f) k E ↝ 𝒮 (if (l < u) then ((decl Int λ i → i ≔ l ； f i) ； for (l + ⟨ + 1 ⟩) to u then f) else nop) k E
+      → 𝒮 (for l to u then f) k E
+        ↝ 𝒮 (if (l < u) then (
+                (decl Int λ i → i ≔ l ； f i) ；
+                for (l + ⟨ + 1 ⟩) to u then f)
+             else nop) k E
     ↝-while : ∀ { E : Env } → ∀ { k : Continuation }
       → ∀ { e : Expr Bool } → ∀ { s : Statement }
       → 𝒮 (while e then s) k E ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
@@ -93,16 +97,20 @@ open Semantics ⦃ ... ⦄
 infix 0 _≡ₑ_
 infix 0 _≡ₛ_
 _≡ₑ_ : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → ∀ { α } → Rel (Expr α) 0ℓ
-_≡ₑ_ { α } x y = ∀ { E : Env } → ∀ { e : Expr α } → ∀ { v : Value α e } → E ⊢ x ⇒ v → E ⊢ y ⇒ v 
+_≡ₑ_ { α } x y = ∀ { E : Env } → ∀ { e : Expr α } → ∀ { v : Value α e }
+  → (E ⊢ x ⇒ v → E ⊢ y ⇒ v ) × (E ⊢ y ⇒ v → E ⊢ x ⇒ v)
 
 ≡ₑ-symmetric : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → ∀ { α } → Symmetric (_≡ₑ_ { α })
-≡ₑ-symmetric i≡j E⊢j⇒v = {!!}
+≡ₑ-symmetric i≡j = let i→j , j→i = i≡j in j→i , i→j
 
 ≡ₑ-transitive : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → ∀ { α } → Transitive (_≡ₑ_ { α })
-≡ₑ-transitive i≡j j≡k E⊢i⇒v = {!!}
+≡ₑ-transitive i≡j j≡k =
+  let i→j , j→i = i≡j in
+  let j→k , k→j = j≡k in
+    j→k ∘ i→j , j→i ∘ k→j
 
 ≡ₑ-isEquivalence : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → ∀ { α } → IsEquivalence (_≡ₑ_ { α })
-≡ₑ-isEquivalence = record { refl = id ; sym = ≡ₑ-symmetric ; trans = ≡ₑ-transitive }
+≡ₑ-isEquivalence = record { refl = id , id ; sym = ≡ₑ-symmetric ; trans = ≡ₑ-transitive }
 
 +-id : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → Identity _≡ₑ_ (⟨ + 0 ⟩) _+_
 +-assoc : ∀ ⦃ _ : C ⦄ → ∀ ⦃ _ : Semantics ⦄ → Associative _≡ₑ_ _+_
