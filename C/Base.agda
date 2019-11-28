@@ -5,7 +5,7 @@ open import Data.Integer using (ℤ)
 open import Relation.Binary using (Rel ; IsPartialOrder)
 
 data c_type : Set where
-  Char Int Bool : c_type
+  Int Bool : c_type -- TODO: Float type
   Array : c_type → (n : ℕ) → c_type
 
 record C : Set₁ where
@@ -18,6 +18,7 @@ record C : Set₁ where
     _<_ _<=_ _>_ _>=_ _==_ : Expr Int → Expr Int → Expr Bool
     true false : Expr Bool
     _||_ _&&_ : Expr Bool → Expr Bool → Expr Bool
+    !_ : Expr Bool → Expr Bool
     if_then_else_ : Expr Bool → Statement → Statement → Statement
     _[_] : ∀ { α n } → Ref (Array α n) → (i : Expr Int) → Ref α
     ★_ : ∀ { α } → Ref α → Expr α
