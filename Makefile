@@ -1,5 +1,7 @@
+STDLIB=/usr/share/agda-stdlib/
+
 main.agda.o: *.agda
-	agda --compile --ghc-dont-call-ghc -i /usr/share/agda-stdlib/ Main.agda
+	agda --compile --ghc-dont-call-ghc -i $(STDLIB) Main.agda
 	ghc                                                               \
             -package text -package ghc                           	  \
             MAlonzo/Code/Main.hs                                      \
