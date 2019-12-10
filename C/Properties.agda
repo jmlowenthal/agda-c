@@ -14,6 +14,7 @@ import Data.Integer.Properties as ℤₚ
 open import Relation.Nullary
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.Construct.Closure.Transitive
 open import Data.Vec
 
 module C.Properties ⦃ _ : C ⦄ where
@@ -88,7 +89,7 @@ record Semantics : Set₁ where
     &&-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → E ⊢ x && y ⇒ val (x' 𝔹.∧ y')
 
-    _↝_ : State → State → Set
+    _↝_ : Rel State 0ℓ
     ↝-if-true : ∀ { E : Env } → ∀ { k : Continuation }
       → ∀ { cond : Expr Bool } → ∀ { s₁ s₂ : Statement }
       → E ⊢ cond ⇒ val 𝔹.true → 𝒮 (if cond then s₁ else s₂) k E ↝ 𝒮 s₁ k E
@@ -122,10 +123,23 @@ record Semantics : Set₁ where
   _≅ₑ_ { α } x y = ∀ { E : Env } → ∀ { v w : ⟦ α ⟧ }
     → (E ⊢ x ⇒ val v) → (E ⊢ y ⇒ val w) → (v ≡ w)
 
+  _↝⁺_ : State → State → Set
+  _↝⁺_ S₁ S₂ = S₁ [ _↝_ ]⁺ S₂
+
+  _↝*_ : State → State → Set
+  _↝*_ S₁ S₂ = S₁ ≡ S₂ ⊎ S₁ ↝⁺ S₂
+
+  NonTerminating : State → Set
+  NonTerminating S = ∀ { S' : State } → S ↝* S' → ¬ (∀ { S'' : State } → ¬ S' ↝ S'')
+
+  _≅ₛ_ : Rel Statement 0ℓ
+  _≅ₛ_ x y = ∀ { k : Continuation } → ∀ { E : Env } → ∀ { S₁ S₂ : State }
+    → (NonTerminating (𝒮 x k E) × NonTerminating (𝒮 y k E))
+      ⊎ (𝒮 x k E ↝* S₁ → 𝒮 y k E ↝* S₂ → S₁ ≡ S₂)
+
   field
     ≅ₑ-equiv : ∀ { α } → IsEquivalence (_≅ₑ_ { α })
-
-  -- TODO: Program equivalence (df non-termination)
+    ≅ₛ-equiv : IsEquivalence _≅ₛ_
 
 open Semantics ⦃ ... ⦄
 
@@ -180,14 +194,15 @@ cong₃ f refl refl refl = refl
 -- &&-assoc : Associative _≅ₑ_ _&&_
 -- &&-commute : Commutative _≅ₑ_ _&&_
 
--- _≡ₛ_ : Rel Statement 0ℓ
-    
+↝-det : ∀ ⦃ _ : Semantics ⦄ { k E s S₁ S₂ }
+  → 𝒮 k E s ↝ S₁ → 𝒮 k E s ↝ S₂ → S₁ ≡ S₂
+↝-det {k} {E} {s} {S₁} {S₂} ↝S₁ ↝S₂ =
+  {!IsEquivalence.refl ≅ₛ-equiv ↝S₁ ↝S₂ {!!} {!!}!}
 
---open Equivalence ⦃ ... ⦄
-
--- β-if-true : ∀ ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
---   → if true then x else y ≡ₛ x
--- β-if-true = {!!}
+β-if-true : ∀ ⦃ _ : Semantics ⦄ → ∀ { x y : Statement }
+  → (if true then x else y) ≅ₛ x
+--β-if-true {k} {E} {S₁} {S₂} if↝S₁ x↝S₂ Irr₁ Irr₂ =
+--  {!!}
 
 -- β-if-false : ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
 --   → if false then x else y ≡ y
