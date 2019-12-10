@@ -89,7 +89,7 @@ record Semantics : Set₁ where
     -- a tagless style
     nat : ∀ { E n } → E ⊢ ⟨ n ⟩ ⇒ val n
     deref : ∀ { E α } → ∀ { x : Ref α } → ∀ { e : ⟦ α ⟧ } → ∀ { v : Value α e }
-      → (x ↦ v ∈ E) → (E ⊢ (★ x) ⇒ v)
+      → ∀ { x∈E : x ∈ E } → ((x ↦ v ∈ E) {x∈E}) → (E ⊢ (★ x) ⇒ v)
     +-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y'
       → E ⊢ x + y ⇒ val (x' ℤ.+ y')
