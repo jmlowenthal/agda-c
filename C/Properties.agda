@@ -133,11 +133,7 @@ open ≡-Reasoning
 
 ⊢-det : ∀ ⦃ _ : Semantics ⦄ { E α } { e : Expr α } { x y : ⟦ α ⟧ }
   → E ⊢ e ⇒ val x → E ⊢ e ⇒ val y → x ≡ y
-⊢-det {x = x} {y} ⇒x ⇒y = {!!}
-
-⊢-injective : ∀ ⦃ _ : Semantics ⦄ { E : Env } { α : c_type } { e₁ e₂ : Expr α } { x y : ⟦ α ⟧ }
-  → (E ⊢ e₁ ⇒ val x) ≡ (E ⊢ e₂ ⇒ val y) → (e₁ ≅ₑ e₂) × (x ≡ y)
-⊢-injective refl = ?
+⊢-det {E} {α} {e} {x} {y} ⇒x ⇒y = IsEquivalence.refl ≅ₑ-equiv {e} {E} {x} {y} ⇒x ⇒y 
 
 cong₃ : ∀ { a b c d : Level.Level } { A : Set a } { B : Set b } { C : Set c } { D : Set d }
   → ∀ (f : A → B → C → D) {x y u v a b}
@@ -150,13 +146,20 @@ cong₃ f refl refl refl = refl
 
 +-left-id : ∀ ⦃ _ : Semantics ⦄ → LeftIdentity _≅ₑ_ (⟨ + 0 ⟩) _+_
 +-left-id e {E} {v} {w} 0+e⇒v e⇒w =
-  let y = +-eval (nat { n = + 0 }) e⇒w in
-  let b = begin ℤ.+ 0 ℤ.+ w ≡⟨ proj₁ ℤₚ.+-identity w ⟩ w ∎ in
-    proj₂ (⊢-injective {!0+e⇒v!})
+  let 0+e⇒0+w = +-eval (nat { n = + 0 }) e⇒w in
+  let 0+w≡v = ⊢-det 0+e⇒0+w 0+e⇒v in
+  let 0+w≡w = proj₁ ℤₚ.+-identity w in
+    trans (sym 0+w≡v) 0+w≡w
+
++-right-id : ∀ ⦃ _ : Semantics ⦄ → RightIdentity _≅ₑ_ (⟨ + 0 ⟩) _+_
++-right-id e {E} {v} {w} e+0⇒v e⇒w =
+  let e+0⇒w+0 = +-eval e⇒w (nat { n = + 0 }) in
+  let w+0≡v = ⊢-det e+0⇒w+0 e+0⇒v in
+  let w+0≡w = proj₂ ℤₚ.+-identity w in
+    trans (sym w+0≡v) w+0≡w
 
 +-id : ∀ ⦃ _ : Semantics ⦄ → Identity _≅ₑ_ (⟨ + 0 ⟩) _+_
-+-id = {!!}
-
++-id = +-left-id , +-right-id
 
 -- +-assoc : Associative _≅ₑ_ _+_
 -- +-commute : Commutative _≅ₑ_ _+_
