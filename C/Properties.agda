@@ -34,9 +34,27 @@ data Env : Set where
   _,_ : ∀ { α } → Ref α → Env → Env
   ε : Env
 
-_↦_∈_ : ∀ { α } → ∀ { v : ⟦ α ⟧ } → Ref α → Value α v → Env → Set
+data _∈_ : ∀ { α } → Ref α → Env → Set where
+  x∈x↦v,E : ∀ { α } { v : ⟦ α ⟧ } {x : Ref α} {E : Env}
+    → x ∈ (x ↦ val v , E)
+  x∈x,E : ∀ { α } { x : Ref α } { E : Env }
+    → x ∈ (x , E)
+  xα∈yβ↦w,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β } { w : ⟦ β ⟧ } { W : Value β w }
+    → x ∈ E → x ∈ (y ↦ W , E)
+  xα∈yβ,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β }
+    → x ∈ E → x ∈ (y , E)
+  xα∈yα↦w,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { w : ⟦ α ⟧ } { W : Value α w }
+    → x ∈ E → x ∈ (y ↦ W , E)
+  xα∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y }
+    → x ∈ E → x ∈ (y , E)
 
-_∈_ : ∀ { α } → Ref α → Env → Set
+_↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → (x : Ref α) → (V : Value α v) → (E : Env) → ∀ { _ : x ∈ E } → Set
+(x ↦ val v ∈ _) {x∈x↦v,E {v = w}} = v ≡ w
+(x ↦ val v ∈ _) {x∈x,E} = ⊥
+(x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yβ↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+(x ↦ val v ∈ (_ , E)) {xα∈yβ,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+(x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yα↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+(x ↦ val v ∈ (_ , E)) {xα∈yα,E x∈E} = (x ↦ val v ∈ E) {x∈E}
 
 _∉_ : ∀ { α } → Ref α → Env → Set
 x ∉ E = ¬ (x ∈ E)
