@@ -71,6 +71,7 @@ data Continuation : Set where
 
 data State : Set where
   𝒮 : Statement → Continuation → Env → State
+  -- TODO: Side effects
 
 record Semantics : Set₁ where
   field
