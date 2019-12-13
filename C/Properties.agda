@@ -4,10 +4,10 @@ open import C.Base
 open import Function
 open import Relation.Binary
 open import Level using (0ℓ)
-open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
+open import Data.Product using (∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
 open import Algebra.FunctionProperties
-open import Data.Unit using (⊤)
-open import Data.Empty using (⊥)
+open import Data.Unit
+open import Data.Empty
 open import Data.Sum
 open import Data.Integer as ℤ using (ℤ ; +_)
 import Data.Integer.Properties as ℤₚ
@@ -102,6 +102,8 @@ record Semantics : Set₁ where
     -- /-eval : ∀ { E x y x' y' }
     --   → E ⊢ x ⇒ v-int x' → E ⊢ y ⇒ v-int y'
     --   → E ⊢ x / y ⇒ v-int (x' ℤ./ y')
+    true-eval : ∀ { E } → E ⊢ true ⇒ val 𝔹.true
+    false-eval : ∀ { E } → E ⊢ false ⇒ val 𝔹.false
     ||-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → E ⊢ x || y ⇒ val (x' 𝔹.∨ y')
     &&-eval : ∀ { E x y x' y' }
@@ -165,7 +167,7 @@ open ≡-Reasoning
 
 ⊢-det : ∀ ⦃ _ : Semantics ⦄ { E α } { e : Expr α } { x y : ⟦ α ⟧ }
   → E ⊢ e ⇒ val x → E ⊢ e ⇒ val y → x ≡ y
-⊢-det {E} {α} {e} {x} {y} ⇒x ⇒y = IsEquivalence.refl ≅ₑ-equiv {e} {E} {x} {y} ⇒x ⇒y 
+⊢-det {E} {α} {e} {x} {y} ⇒x ⇒y = IsEquivalence.refl ≅ₑ-equiv {e} {E} {x} {y} ⇒x ⇒y
 
 cong₃ : ∀ { a b c d : Level.Level } { A : Set a } { B : Set b } { C : Set c } { D : Set d }
   → ∀ (f : A → B → C → D) {x y u v a b}
@@ -179,16 +181,26 @@ cong₃ f refl refl refl = refl
 +-left-id : ∀ ⦃ _ : Semantics ⦄ → LeftIdentity _≅ₑ_ (⟨ + 0 ⟩) _+_
 +-left-id e {E} {v} {w} 0+e⇒v e⇒w =
   let 0+e⇒0+w = +-eval (nat { n = + 0 }) e⇒w in
-  let 0+w≡v = ⊢-det 0+e⇒0+w 0+e⇒v in
-  let 0+w≡w = proj₁ ℤₚ.+-identity w in
-    trans (sym 0+w≡v) 0+w≡w
+  let v≡0+w = ⊢-det 0+e⇒v 0+e⇒0+w in
+  begin
+    v
+    ≡⟨ v≡0+w ⟩
+    + 0 ℤ.+ w
+    ≡⟨ ℤₚ.+-identityˡ w ⟩
+    w
+  ∎
 
 +-right-id : ∀ ⦃ _ : Semantics ⦄ → RightIdentity _≅ₑ_ (⟨ + 0 ⟩) _+_
 +-right-id e {E} {v} {w} e+0⇒v e⇒w =
   let e+0⇒w+0 = +-eval e⇒w (nat { n = + 0 }) in
-  let w+0≡v = ⊢-det e+0⇒w+0 e+0⇒v in
-  let w+0≡w = proj₂ ℤₚ.+-identity w in
-    trans (sym w+0≡v) w+0≡w
+  let v≡w+0 = ⊢-det e+0⇒v e+0⇒w+0 in
+  begin
+    v
+    ≡⟨ v≡w+0 ⟩
+    w ℤ.+ + 0
+    ≡⟨ ℤₚ.+-identityʳ w ⟩
+    w
+  ∎
 
 +-id : ∀ ⦃ _ : Semantics ⦄ → Identity _≅ₑ_ (⟨ + 0 ⟩) _+_
 +-id = +-left-id , +-right-id
