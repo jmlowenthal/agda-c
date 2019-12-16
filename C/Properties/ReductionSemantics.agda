@@ -15,9 +15,10 @@ open import Relation.Nullary
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.Construct.Closure.Transitive
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 open import Data.Vec
 
-module C.Properties ⦃ _ : C ⦄ where
+module C.Properties.ReductionSemantics ⦃ _ : C ⦄ where
 
 open C.Base.C ⦃ ... ⦄
 
@@ -148,7 +149,7 @@ record Semantics : Set₁ where
   _↝⁺_ S₁ S₂ = S₁ ⟨ _↝_ ⟩⁺ S₂
 
   _↝*_ : State → State → Set
-  _↝*_ S₁ S₂ = S₁ ≡ S₂ ⊎ S₁ ↝⁺ S₂
+  _↝*_ = Star _↝_
 
   NonTerminating : State → Set
   NonTerminating S = ∀ { S' : State }
@@ -161,7 +162,7 @@ record Semantics : Set₁ where
   Terminating S = ¬ (NonTerminating S)
 
   Terminatingₛ : Statement → Set
-  Terminatingₛ s = ¬ (NonTerminatingₛ s)
+  Terminatingₛ s = ∀ { k E } → Terminating (𝒮 s k E)
 
   _≅ₛ_ : Rel Statement 0ℓ
   _≅ₛ_ x y = ∀ { k : Continuation } → ∀ { E : Env } → ∀ { S₁ S₂ : State }
@@ -236,19 +237,37 @@ cong₃ f refl refl refl = refl
 -- &&-id : Identity _≅ₑ_ true _&&_
 -- &&-zero : Zero _≅ₑ_ false _&&_
 -- &&-assoc : Associative _≅ₑ_ _&&_
--- &&-commute : Commutative _≅ₑ_ _&&_
+-- &&-commute : Commutative _≅ₑ_ _&&_ 
+
+↝*-trans : ∀ ⦃ _ : Semantics ⦄ → Transitive _↝*_
+↝*-trans = _◅◅_
+
+↝*-to-↝⁺ : ∀ ⦃ _ : Semantics ⦄ { A B C } → A ↝ B → B ↝* C → A ↝⁺ C
+↝*-to-↝⁺ A↝B ε = Plus′.[ A↝B ]
+↝*-to-↝⁺ A↝B (B↝X ◅ X↝*C) = A↝B ∷ (↝*-to-↝⁺ B↝X X↝*C)
+
+↝⁺-to-↝* : ∀ ⦃ _ : Semantics ⦄ { A B } → A ↝⁺ B → A ↝* B
+↝⁺-to-↝* Plus′.[ A↝B ] = A↝B ◅ ε
+↝⁺-to-↝* (A↝X ∷ X↝⁺B) = A↝X ◅ (↝⁺-to-↝* X↝⁺B)
 
 ↝ω-interchange : ∀ ⦃ _ : Semantics ⦄ { s k E }
   → NonTerminatingₛ s → NonTerminating (𝒮 s k E)
+↝ω-interchange ↝ωₛ = ↝ωₛ
 
 ↝̸-interchange : ∀ ⦃ _ : Semantics ⦄ { s k E }
   → Terminatingₛ s → Terminating (𝒮 s k E)
+↝̸-interchange ↝̸ₛ = ↝̸ₛ
 
-↝ω-transᵇ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
-  → S ↝ S' → NonTerminating S' → NonTerminating S
+↝ω-transᵇ : ∀ ⦃ _ : Semantics ⦄ { X Y : State }
+  → X ↝ Y → NonTerminating Y → NonTerminating X
+↝ω-transᵇ {X} {Y} X↝Y Y↝ω ε = Y , X↝Y
+↝ω-transᵇ {X} {Y} X↝Y Y↝ω (X↝A ◅ A↝*Y)
+  with ↝-det X↝Y X↝A
+... | refl = Y↝ω A↝*Y
 
-→ω-transᶠ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
+↝ω-transᶠ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
   → S ↝ S' → NonTerminating S → NonTerminating S'
+↝ω-transᶠ {S} {S'} S↝S' S↝ω S'↝*S'' = S↝ω {!!}
 
 ↝̸-transᵇ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
   → S ↝ S' → Terminating S' → Terminating S
@@ -263,43 +282,41 @@ cong₃ f refl refl refl = refl
 ↝*-det : ∀ ⦃ _ : Semantics ⦄ { S S₁ S₂ }
   → Terminating S → (∀ S' → ¬ (S₁ ↝ S')) → (∀ S' → ¬ (S₂ ↝ S'))
   → S ↝* S₁ → S ↝* S₂ → S₁ ≡ S₂
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (inj₁ refl) (inj₁ refl) = refl
-↝*-det ↝̸ S↝̸ S₂↝̸ (inj₁ refl) (inj₂ S↝⁺S₂) = ⊥-elim (↝⁺-contr S↝̸ S↝⁺S₂)
-↝*-det ↝̸ S₁↝̸ S↝̸ (inj₂ S↝⁺S₁) (inj₁ refl) = ⊥-elim (↝⁺-contr S↝̸ S↝⁺S₁)
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (inj₂ Plus′.[ S↝S₁ ]) (inj₂ Plus′.[ S↝S₂ ]) = ↝-det S↝S₁ S↝S₂
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (inj₂ Plus′.[ S↝S₁ ]) (inj₂ (S↝X ∷ X↝⁺S₂))
-  with ↝-det S↝S₁ S↝X
-... | refl = ↝*-det (↝̸-transᶠ S↝X ↝̸) S₁↝̸ S₂↝̸ (inj₁ refl) (inj₂ X↝⁺S₂)
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (inj₂ (S↝X ∷ X↝⁺S₁)) (inj₂ Plus′.[ S↝S₂ ])
-  with ↝-det S↝S₂ S↝X
-... | refl = ↝*-det (↝̸-transᶠ S↝X ↝̸) S₁↝̸ S₂↝̸ (inj₂ X↝⁺S₁) (inj₁ refl)
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (inj₂ (S↝X ∷ X↝⁺S₁)) (inj₂ (S↝Y ∷ Y↝⁺S₂))
+↝*-det ↝̸ S₁↝̸ S₂↝̸ ε ε = refl
+↝*-det ↝̸ S↝̸ S₂↝̸ ε (S↝X ◅ X↝*S₂) = ⊥-elim (↝⁺-contr S↝̸ (↝*-to-↝⁺ S↝X X↝*S₂))
+↝*-det ↝̸ S₁↝̸ S↝̸ (S↝X ◅ X↝*S₂) ε = ⊥-elim (↝⁺-contr S↝̸ (↝*-to-↝⁺ S↝X X↝*S₂))
+↝*-det ↝̸ S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
   with ↝-det S↝X S↝Y
-... | refl = ↝*-det (↝̸-transᶠ S↝X ↝̸) S₁↝̸ S₂↝̸ (inj₂ X↝⁺S₁) (inj₂ Y↝⁺S₂)
+... | refl = ↝*-det (↝̸-transᶠ S↝X ↝̸) S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
 
 ↝*-det-progress : ∀ ⦃ _ : Semantics ⦄ { S S' S'' }
   → S ↝ S' → S ↝⁺ S'' → S' ↝* S''
-↝*-det-progress S↝S' Plus′.[ S↝S'' ] = inj₁ (↝-det S↝S' S↝S'')
+↝*-det-progress S↝S' Plus′.[ S↝S'' ]
+  with ↝-det S↝S' S↝S''
+... | refl = ε
 ↝*-det-progress S↝S' (S↝X ∷ X↝⁺S'') with ↝-det S↝S' S↝X
-... | refl = inj₂ X↝⁺S''
-
-β-if-true-terminating : ∀ ⦃ _ : Semantics ⦄ { x y : Statement } { k E S₁ S₂ }
-  → Terminating (𝒮 x k E)
-  → 𝒮 (if true then x else y) k E ↝* S₁ → 𝒮 x k E ↝* S₂
-  → (∀ S' → ¬ (S₁ ↝ S')) → (∀ S' → ¬ (S₂ ↝ S'))
-  → S₁ ≡ S₂
-β-if-true-terminating {x} {y} {k} {E} _ (inj₁ refl) x↝*S₂ S₁↝̸ S₂↝̸ =
-  ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval))
-β-if-true-terminating x↝̸ (inj₂ if↝⁺S₁) x↝*S₂ S₁↝̸ S₂↝̸ =
-  ↝*-det x↝̸ S₁↝̸ S₂↝̸ (↝*-det-progress (↝-if-true true-eval) if↝⁺S₁) x↝*S₂
+... | refl = ↝⁺-to-↝* X↝⁺S''
 
 β-if-true : ∀ ⦃ _ : Semantics ⦄ → ∀ { x y : Statement }
   → ∀ { _ : Terminatingₛ x ⊎ NonTerminatingₛ x }
   → (if true then x else y) ≅ₛ x
-β-if-true {_} {_} {inj₁ ↝̸} =
-  inj₂ (β-if-true-terminating (↝̸-interchange ↝̸))
+β-if-true {x} {y} {inj₁ ↝̸} =
+  let helper :
+        ∀ { k E S₁ S₂ }
+        → 𝒮 (if true then x else y) k E ↝* S₁
+        → 𝒮 x k E ↝* S₂
+        → (∀ S' → ¬ (S₁ ↝ S'))
+        → (∀ S' → ¬ (S₂ ↝ S'))
+        → S₁ ≡ S₂
+      helper {k} {E} = λ {
+        ε x↝*S₂ S₁↝̸ S₂↝̸ →
+          ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval)) ;
+        if↝⁺S₁@(_ ◅ _) x↝*S₂ S₁↝̸ S₂↝̸ →
+          ↝*-det (↝̸-interchange ↝̸) S₁↝̸ S₂↝̸ (↝*-det-progress (↝-if-true true-eval) {!if↝⁺S₁!}) x↝*S₂ }
+  in
+    inj₂ helper
 β-if-true {_} {_} {inj₂ →ω} =
-    inj₁ (↝ω-transᵇ (↝-if-true true-eval) →ω , →ω)
+  inj₁ (↝ω-transᵇ (↝-if-true true-eval) →ω , →ω)
 
 -- β-if-false : ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
 --   → if false then x else y ≡ y
