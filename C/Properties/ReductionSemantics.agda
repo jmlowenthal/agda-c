@@ -49,13 +49,27 @@ data _∈_ : ∀ { α } → Ref α → Env → Set where
   xα∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y }
     → x ∈ E → x ∈ (y , E)
 
-_↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → (x : Ref α) → (V : Value α v) → (E : Env) → ∀ { _ : x ∈ E } → Set
-(x ↦ val v ∈ _) {x∈x↦v,E {v = w}} = v ≡ w
-(x ↦ val v ∈ _) {x∈x,E} = ⊥
-(x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yβ↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
-(x ↦ val v ∈ (_ , E)) {xα∈yβ,E x∈E} = (x ↦ val v ∈ E) {x∈E}
-(x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yα↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
-(x ↦ val v ∈ (_ , E)) {xα∈yα,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+data _↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → Ref α → Value α v → Env → Set where
+  x↦v∈x↦v,E : ∀ { α } { v : ⟦ α ⟧ } {x : Ref α} {E : Env}
+    → x ↦ val v ∈ (x ↦ val v , E)
+  xα↦v∈yβ↦w,E :
+    ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β }
+    { v : ⟦ α ⟧ } { w : ⟦ β ⟧ }
+    → x ↦ val v ∈ E → x ↦ val v ∈ (y ↦ val w , E)
+  xα↦v∈yβ,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β } { v : ⟦ α ⟧ }
+    → x ↦ val v ∈ E → x ↦ val v ∈ (y , E)
+  xα↦v∈yα↦w,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { w : ⟦ α ⟧ } { v : ⟦ α ⟧ }
+    → x ↦ val v ∈ E → x ↦ val v ∈ (y ↦ val w , E)
+  xα↦v∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { v : ⟦ α ⟧ }
+    → x ↦ val v ∈ E → x ↦ val v ∈ (y , E)
+
+-- _↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → (x : Ref α) → (V : Value α v) → (E : Env) → ∀ { _ : x ∈ E } → Set
+-- (x ↦ val v ∈ _) {x∈x↦v,E {v = w}} = v ≡ w
+-- (x ↦ val v ∈ _) {x∈x,E} = ⊥
+-- (x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yβ↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+-- (x ↦ val v ∈ (_ , E)) {xα∈yβ,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+-- (x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yα↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
+-- (x ↦ val v ∈ (_ , E)) {xα∈yα,E x∈E} = (x ↦ val v ∈ E) {x∈E}
 
 _∉_ : ∀ { α } → Ref α → Env → Set
 x ∉ E = ¬ (x ∈ E)
@@ -77,21 +91,18 @@ data State : Set where
 record Semantics : Set₁ where
   field
     _⊢_⇒_ : ∀ { α } → ∀ { v : ⟦ α ⟧ } → Env → Expr α → Value α v → Set
-    ⇒-determinacy : ∀ { E α } { x : Expr α } { v w : ⟦ α ⟧ }
-      → E ⊢ x ⇒ val v → E ⊢ x ⇒ val w → v ≡ w
-    ⇒-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
+    ⊢-total : ∀ { α E } { e : Expr α } → ∃ λ v → (E ⊢ e ⇒ val v)
+    ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
       → { _ : x ∉ E × x ∉ E' }
       → (E ⊕ E') ⊢ e ⇒ val v → (E ⊕ (x ↦ val w , ε) ⊕ E') ⊢ e ⇒ val v
-    ⇒-exchange : ∀ { E E' α β γ } { x : Ref α } { y : Ref β }
+    ⊢-exchange : ∀ { E E' α β γ } { x : Ref α } { y : Ref β }
       → { v : ⟦ α ⟧ } { w : ⟦ β ⟧ } { e : Expr γ } { ev : ⟦ γ ⟧ }
       → (E ⊕ (x ↦ val v , (y ↦ val w , ε)) ⊕ E') ⊢ e ⇒ val ev
       → (E ⊕ (y ↦ val w , (x ↦ val v , ε)) ⊕ E') ⊢ e ⇒ val ev
     -- TODO: variants on Env constructor
-    -- NB: some of these would come for free with a data specification, rather than
-    -- a tagless style
     nat : ∀ { E n } → E ⊢ ⟨ n ⟩ ⇒ val n
-    deref : ∀ { E α } → ∀ { x : Ref α } → ∀ { e : ⟦ α ⟧ } → ∀ { v : Value α e }
-      → ∀ { x∈E : x ∈ E } → ((x ↦ v ∈ E) {x∈E}) → (E ⊢ (★ x) ⇒ v)
+    deref : ∀ { E α } { x : Ref α } { v : ⟦ α ⟧ }
+      → x ↦ val v ∈ E → (E ⊢ (★ x) ⇒ val v)
     +-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y'
       → E ⊢ x + y ⇒ val (x' ℤ.+ y')
@@ -139,6 +150,7 @@ record Semantics : Set₁ where
     ↝-while : ∀ { E : Env } → ∀ { k : Continuation }
       → ∀ { e : Expr Bool } → ∀ { s : Statement }
       → 𝒮 (while e then s) k E ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
+    ↝-det : ∀ { S S₁ S₂ } → S ↝ S₁ → S ↝ S₂ → S₁ ≡ S₂
 
   infix 0 _≅ₑ_
   _≅ₑ_ : ∀ { α } → Rel (Expr α) 0ℓ
@@ -151,34 +163,30 @@ record Semantics : Set₁ where
   _↝*_ : State → State → Set
   _↝*_ = Star _↝_
 
-  NonTerminating : State → Set
-  NonTerminating S = ∀ { S' : State }
-    → S ↝* S' → (∃ λ S'' → S' ↝ S'')
-
-  NonTerminatingₛ : Statement → Set
-  NonTerminatingₛ s = ∀ { k E } → NonTerminating (𝒮 s k E)
+  Stuck : State → Set
+  Stuck S = ∀ S' → ¬ (S ↝ S')
 
   Terminating : State → Set
-  Terminating S = ¬ (NonTerminating S)
+  Terminating S = ∃ λ S' → S ↝* S' × Stuck S'
 
-  Terminatingₛ : Statement → Set
-  Terminatingₛ s = ∀ { k E } → Terminating (𝒮 s k E)
-
-  _≅ₛ_ : Rel Statement 0ℓ
-  _≅ₛ_ x y = ∀ { k : Continuation } → ∀ { E : Env } → ∀ { S₁ S₂ : State }
-    → (NonTerminating (𝒮 x k E) × NonTerminating (𝒮 y k E))
-      ⊎ (𝒮 x k E ↝* S₁ → 𝒮 y k E ↝* S₂
-        → (∀ S' → ¬ (S₁ ↝ S')) → (∀ S' → ¬ (S₂ ↝ S'))
-        → S₁ ≡ S₂)
+  _≅ₛ_ : Rel State 0ℓ
+  X ≅ₛ Y = ∀ { S₁ S₂ : State }
+    → (¬ Terminating X × ¬ Terminating Y)
+      ⊎ (X ↝* S₁ → Y ↝* S₂ → Stuck S₁ → Stuck S₂ → S₁ ≡ S₂)
 
   field
     ≅ₑ-equiv : ∀ { α } → IsEquivalence (_≅ₑ_ { α })
     ≅ₛ-equiv : IsEquivalence _≅ₛ_
-    ↝-det : ∀ { S S₁ S₂ } → S ↝ S₁ → S ↝ S₂ → S₁ ≡ S₂
+    ≅ₛ-subst : ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
+      → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
+      → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
 
 open Semantics ⦃ ... ⦄
 
 open ≡-Reasoning
+
+
+-- VALUE JUDGEMENT LEMMAS
 
 ⊢-det : ∀ ⦃ _ : Semantics ⦄ { E α } { e : Expr α } { x y : ⟦ α ⟧ }
   → E ⊢ e ⇒ val x → E ⊢ e ⇒ val y → x ≡ y
@@ -192,6 +200,9 @@ cong₃ f refl refl refl = refl
 ⊢-cong : ∀ ⦃ _ : Semantics ⦄ { E₁ E₂ α } { e₁ e₂ : Expr α } { x : ⟦ α ⟧ } { v₁ v₂ : Value α x }
   → E₁ ≡ E₂ → e₁ ≡ e₂ → v₁ ≡ v₂ → E₁ ⊢ e₁ ⇒ v₁ ≡ E₂ ⊢ e₂ ⇒ v₂
 ⊢-cong = cong₃ _⊢_⇒_
+
+
+-- EXPRESSION EQUIVALENCE
 
 +-left-id : ∀ ⦃ _ : Semantics ⦄ → LeftIdentity _≅ₑ_ (⟨ + 0 ⟩) _+_
 +-left-id e {E} {v} {w} 0+e⇒v e⇒w =
@@ -239,6 +250,9 @@ cong₃ f refl refl refl = refl
 -- &&-assoc : Associative _≅ₑ_ _&&_
 -- &&-commute : Commutative _≅ₑ_ _&&_ 
 
+
+-- REDUCTION LEMMAS
+
 ↝*-trans : ∀ ⦃ _ : Semantics ⦄ → Transitive _↝*_
 ↝*-trans = _◅◅_
 
@@ -250,73 +264,69 @@ cong₃ f refl refl refl = refl
 ↝⁺-to-↝* Plus′.[ A↝B ] = A↝B ◅ ε
 ↝⁺-to-↝* (A↝X ∷ X↝⁺B) = A↝X ◅ (↝⁺-to-↝* X↝⁺B)
 
-↝ω-interchange : ∀ ⦃ _ : Semantics ⦄ { s k E }
-  → NonTerminatingₛ s → NonTerminating (𝒮 s k E)
-↝ω-interchange ↝ωₛ = ↝ωₛ
-
-↝̸-interchange : ∀ ⦃ _ : Semantics ⦄ { s k E }
-  → Terminatingₛ s → Terminating (𝒮 s k E)
-↝̸-interchange ↝̸ₛ = ↝̸ₛ
-
-↝ω-transᵇ : ∀ ⦃ _ : Semantics ⦄ { X Y : State }
-  → X ↝ Y → NonTerminating Y → NonTerminating X
-↝ω-transᵇ {X} {Y} X↝Y Y↝ω ε = Y , X↝Y
-↝ω-transᵇ {X} {Y} X↝Y Y↝ω (X↝A ◅ A↝*Y)
-  with ↝-det X↝Y X↝A
-... | refl = Y↝ω A↝*Y
-
-↝ω-transᶠ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
-  → S ↝ S' → NonTerminating S → NonTerminating S'
-↝ω-transᶠ {S} {S'} S↝S' S↝ω S'↝*S'' = S↝ω {!!}
-
 ↝̸-transᵇ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
-  → S ↝ S' → Terminating S' → Terminating S
+  → S ↝* S' → Terminating S' → Terminating S
+↝̸-transᵇ {S} {S'} S↝*S' (X , S'↝*X , X↝̸) = X , (S↝*S' ◅◅ S'↝*X) , X↝̸
 
 ↝̸-transᶠ : ∀ ⦃ _ : Semantics ⦄ { S S' : State }
-  → S ↝ S' → Terminating S → Terminating S'
+  → S ↝* S' → Terminating S → Terminating S'
+↝̸-transᶠ ε S↝̸ = S↝̸
+↝̸-transᶠ (S↝X ◅ X↝*S') (S , ε , S↝̸) = ⊥-elim (S↝̸ _ S↝X)
+↝̸-transᶠ (S↝A ◅ A↝*S') (X , S↝Y ◅ Y↝*X , X↝̸)
+  with ↝-det S↝A S↝Y
+... | refl = ↝̸-transᶠ A↝*S' (X , Y↝*X , X↝̸)
 
-↝⁺-contr : ∀ ⦃ _ : Semantics ⦄ { S S' } → (∀ S'' → ¬ (S ↝ S'')) → S ↝⁺ S' → ⊥
-↝⁺-contr {S} {S'} S↝̸ Plus′.[ S↝S' ] = S↝̸ S' S↝S'
-↝⁺-contr S↝̸ (_∷_ {y = y} S↝y y↝⁺S') = S↝̸ y S↝y
+↝ω-transᵇ : ∀ ⦃ _ : Semantics ⦄ { X Y : State }
+  → X ↝* Y → ¬ Terminating Y → ¬ Terminating X
+↝ω-transᵇ {X} {Y} X↝*Y Y↝ω X↝̸ = Y↝ω (↝̸-transᶠ X↝*Y X↝̸)
+
+↝ω-transᶠ : ∀ ⦃ _ : Semantics ⦄ { X Y : State }
+  → X ↝* Y → ¬ Terminating X → ¬ Terminating Y
+↝ω-transᶠ {X} {Y} X↝*Y X↝ω Y↝̸ = X↝ω (↝̸-transᵇ X↝*Y Y↝̸)
 
 ↝*-det : ∀ ⦃ _ : Semantics ⦄ { S S₁ S₂ }
-  → Terminating S → (∀ S' → ¬ (S₁ ↝ S')) → (∀ S' → ¬ (S₂ ↝ S'))
-  → S ↝* S₁ → S ↝* S₂ → S₁ ≡ S₂
-↝*-det ↝̸ S₁↝̸ S₂↝̸ ε ε = refl
-↝*-det ↝̸ S↝̸ S₂↝̸ ε (S↝X ◅ X↝*S₂) = ⊥-elim (↝⁺-contr S↝̸ (↝*-to-↝⁺ S↝X X↝*S₂))
-↝*-det ↝̸ S₁↝̸ S↝̸ (S↝X ◅ X↝*S₂) ε = ⊥-elim (↝⁺-contr S↝̸ (↝*-to-↝⁺ S↝X X↝*S₂))
-↝*-det ↝̸ S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
+  → Stuck S₁ → Stuck S₂ → S ↝* S₁ → S ↝* S₂ → S₁ ≡ S₂
+↝*-det S₁↝̸ S₂↝̸ ε ε = refl
+↝*-det S↝̸ S₂↝̸ ε (_◅_ {j = X} S↝X X↝*S₂) = ⊥-elim (S↝̸ X S↝X)
+↝*-det S₁↝̸ S↝̸ (_◅_ {j = X} S↝X X↝*S₂) ε = ⊥-elim (S↝̸ X S↝X)
+↝*-det S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
   with ↝-det S↝X S↝Y
-... | refl = ↝*-det (↝̸-transᶠ S↝X ↝̸) S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
+... | refl = ↝*-det S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
 
-↝*-det-progress : ∀ ⦃ _ : Semantics ⦄ { S S' S'' }
-  → S ↝ S' → S ↝⁺ S'' → S' ↝* S''
-↝*-det-progress S↝S' Plus′.[ S↝S'' ]
-  with ↝-det S↝S' S↝S''
-... | refl = ε
-↝*-det-progress S↝S' (S↝X ∷ X↝⁺S'') with ↝-det S↝S' S↝X
-... | refl = ↝⁺-to-↝* X↝⁺S''
+↝*-det' : ∀ ⦃ _ : Semantics ⦄ { S S₁ S₂ }
+  → S ↝* S₁ → S ↝* S₂ → Stuck S₂ → S₁ ↝* S₂
+↝*-det' ε S↝*S₂ _ = S↝*S₂
+↝*-det' (S↝X ◅ X↝*S₁) ε S↝̸ = ⊥-elim (S↝̸ _ S↝X)
+↝*-det' (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂) S₂↝̸
+  with ↝-det S↝X S↝Y
+... | refl = ↝*-det' X↝*S₁ Y↝*S₂ S₂↝̸
 
-β-if-true : ∀ ⦃ _ : Semantics ⦄ → ∀ { x y : Statement }
-  → ∀ { _ : Terminatingₛ x ⊎ NonTerminatingₛ x }
-  → (if true then x else y) ≅ₛ x
-β-if-true {x} {y} {inj₁ ↝̸} =
-  let helper :
-        ∀ { k E S₁ S₂ }
-        → 𝒮 (if true then x else y) k E ↝* S₁
-        → 𝒮 x k E ↝* S₂
-        → (∀ S' → ¬ (S₁ ↝ S'))
-        → (∀ S' → ¬ (S₂ ↝ S'))
-        → S₁ ≡ S₂
-      helper {k} {E} = λ {
-        ε x↝*S₂ S₁↝̸ S₂↝̸ →
-          ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval)) ;
-        if↝⁺S₁@(_ ◅ _) x↝*S₂ S₁↝̸ S₂↝̸ →
-          ↝*-det (↝̸-interchange ↝̸) S₁↝̸ S₂↝̸ (↝*-det-progress (↝-if-true true-eval) {!if↝⁺S₁!}) x↝*S₂ }
-  in
-    inj₂ helper
-β-if-true {_} {_} {inj₂ →ω} =
-  inj₁ (↝ω-transᵇ (↝-if-true true-eval) →ω , →ω)
+
+-- PROGRAM EQUIVALENCE
+
+_≅ₚ_ : ∀ ⦃ _ : Semantics ⦄ → Rel Statement 0ℓ
+_≅ₚ_ x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
+
+≅ₚ-equiv : ∀ ⦃ _ : Semantics ⦄ → IsEquivalence _≅ₚ_
+≅ₚ-equiv = record {
+  refl = IsEquivalence.refl ≅ₛ-equiv ;
+  sym = λ i~j → IsEquivalence.sym ≅ₛ-equiv i~j ;
+  trans = λ i~j j~k → IsEquivalence.trans ≅ₛ-equiv i~j j~k }
+
+-- ≅ₚ-cong : ∀ ⦃ _ : Semantics ⦄ { x y : Statement } { f : Statement → Statement }
+--   → x ≅ₚ y → f x ≅ₚ f y
+
+β-if-true' : ∀ ⦃ _ : Semantics ⦄ { x y : Statement } { k E S₁ S₂ }
+  → 𝒮 (if true then x else y) k E ↝* S₁ → 𝒮 x k E ↝* S₂ → Stuck S₁ → Stuck S₂
+  → S₁ ≡ S₂
+β-if-true' {x} {_} {k} {E} ε _ S₁↝̸ _ = ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval))
+β-if-true' {x} {y} {k} {E} (if↝R ◅ R↝*S₁) x↝*S₂ S₁↝̸ S₂↝̸
+  with ↝-det if↝R (↝-if-true true-eval)
+... | refl = ↝*-det S₁↝̸ S₂↝̸ R↝*S₁ x↝*S₂
+
+β-if-true : ∀ ⦃ _ : Semantics ⦄ { x y : Statement }
+  → (if true then x else y) ≅ₚ x
+β-if-true = inj₂ β-if-true'
 
 -- β-if-false : ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
 --   → if false then x else y ≡ y
@@ -328,3 +338,16 @@ cong₃ f refl refl refl = refl
 
 -- β-while : ⦃ _ : Equivalence ⦄ → ∀ { e₁ : Expr Bool } → ∀ { e₂ : Statement }
 --   → while e₁ then e₂ ≡ if e₁ then (e₂ ； while e₁ then e₂) else nop
+
+≔-subst : ∀ ⦃ _ : Semantics ⦄ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
+  → (x ≔ e ； f (★ x)) ≅ₚ (f e)
+≔-subst {α} {x} {e} {f} {k} {E} {S₁} {S₂}
+  with ⊢-total {α} {E} {e}
+... | v , E⊢e⇒v
+    with ≅ₛ-subst {f = f} (deref {x ↦ val v , E} {α} {x} x↦v∈x↦v,E) E⊢e⇒v refl
+...   | inj₁ (f[★x]↝ω , f[e]↝ω) =
+        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+          inj₁ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
+...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
+        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+          t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
