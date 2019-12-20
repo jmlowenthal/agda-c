@@ -13,23 +13,15 @@ module Streams.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 open C.C ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
 
-_≅[_]_ : ∀ { α β } → Stream α → (Expr β → Expr α → Expr β) → Stream α → Set
-_≅[_]_ {α} {β} s f t = ∀ { z x } → fold f z s x ≅ₚ fold f z t x
-
 _≅_ : ∀ { α } → Rel (Stream α) 0ℓ
-_≅_ {α} s t = ∀ { β } { f : Expr β → Expr α → Expr β } → s ≅[ f ] t
-
-≅[]-equiv : ∀ { α β f } → IsEquivalence (λ a b → _≅[_]_ {α} {β} a f b)
-≅[]-equiv {α} {β} {f} = record {
-  refl = IsEquivalence.refl ≅ₚ-equiv ;
-  trans = λ A B → IsEquivalence.trans ≅ₚ-equiv A B ;
-  sym = λ A → IsEquivalence.sym ≅ₚ-equiv A }
+_≅_ {α} s t = ∀ { β } → (f : Expr β → Expr α → Expr β) → ∀ { z x }
+  → fold f z s x ≅ₚ fold f z t x
 
 ≅-equiv : ∀ { α } → IsEquivalence (_≅_ {α})
 ≅-equiv {α} = record {
-  refl = IsEquivalence.refl ≅ₚ-equiv ;
-  trans = λ A B {_} {f} → IsEquivalence.trans ≅ₚ-equiv (A {f = f}) (B {f = f}) ;
-  sym = λ A {_} {f} → IsEquivalence.sym ≅ₚ-equiv (A {f = f}) }
+  refl = λ _ → IsEquivalence.refl ≅ₚ-equiv ;
+  trans = λ A B {_} f → IsEquivalence.trans ≅ₚ-equiv (A f) (B f) ;
+  sym = λ A {_} f → IsEquivalence.sym ≅ₚ-equiv (A f) }
 
 ≅-setoid : ∀ { α : c_type } → Setoid _ _
 ≅-setoid {α} = record {
