@@ -33,37 +33,43 @@ import Relation.Binary.Reasoning.Setoid as Reasoning
 open module ≅-Reasoning {α} = Reasoning (≅-setoid {α})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_) public
 
-infix 1 begin⟨_⟩_
-begin⟨_⟩_ : ∀ { α β } { x y : Stream α }
-  → (f : Expr β → Expr α → Expr β) → x IsRelatedTo y → x ≅[ f ] y
-begin⟨ f ⟩ (relTo x≅y) = x≅y {f = f}
-
 map-map : ∀ { α β γ }
   → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Expr β }
   → map f (map g s) ≅ map (f ∘ g) s
 map-map = {!!}
 
-≅ₚ-cong : ∀ { x y : Statement } → (F : Statement → Statement) → x ≅ₚ y → F x ≅ₚ F y
-≅-cong : ∀ { α } { β : Set } { x y : β → Statement } → (F : (β → Statement) → Stream α) → ((b : β) → x b ≅ₚ y b) → F x ≅ F y
+≅-cong : ∀ { α } (β : Set) { a b : β → Statement } → (F : (β → Statement) → Stream α) → ((i : β) → a i ≅ₚ b i) → F a ≅ F b
+≅-cong {α} β {a} {b} F a≅b f {z} {x} = {!!}
 
 decl-cong : ∀ { α } { f g : Ref α → Statement }
   → (∀ (r : Ref α) → f r ≅ₚ g r) → (decl α f) ≅ₚ (decl α g)
 
+decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
+
 map-id : ∀ { α } → ∀ { s : Stream α } → map id s ≅ s
-map-id {α} {s@(linear (producer (init , for (bound , index))))} {f = f} =
+map-id {α} {s@(linear (producer (init , for (bound , index))))} =
   let wrap : (_ → Expr Int → (Expr α → Statement) → Statement) → Stream α
       wrap index = linear (producer (init , for (bound , index)))
+      index' f s i k = index s i (f k)
   in
-  begin⟨ f ⟩
+  begin
     map id s
     ≡⟨⟩
-    wrap (λ s i k → index s i (λ e → decl α λ t → t ≔ id e ； k (★ t)))
+    wrap (index' (λ k e → decl α λ t → t ≔ id e ； k (★ t)))
     ≡⟨⟩
-    wrap (λ s i k → index s i (λ e → decl α λ t → t ≔ e ； k (★ t)))
-    ≅⟨ ≅-cong {β = (Expr α → Statement) × Expr α} (λ a → wrap (λ s i k → index s i (λ e → a (k , e)))) (λ { (k , e) → decl-cong (λ r → ≔-subst {x = r} {e = e} {f = k}) }) ⟩
-    wrap (λ s i k → index s i (λ e → decl α λ t → k e))
-    ≅⟨ {!!} ⟩
-    wrap (λ s i k → index s i (λ e → k e))
+    wrap (index' (λ k e → decl α λ t → t ≔ e ； k (★ t)))
+    ≅⟨ ≅-cong
+      ((Expr α → Statement) × Expr α)
+      (λ a → wrap (index' (λ k e → a (k , e))))
+      (λ { (k , e) → decl-cong (λ r → ≔-subst {x = r} {e = e} {f = k}) })
+    ⟩
+    wrap (index' (λ k e → decl α λ t → k e))
+    ≅⟨ ≅-cong
+      (((Expr α → Statement) × Expr α))
+      (λ a → wrap (index' (λ k e → a (k , e))))
+      (λ { (k , e) → decl-elim {α = α} {f = k e} })
+    ⟩
+    wrap (index' (λ k e → k e))
     ≡⟨⟩
     wrap index
     ≡⟨⟩
