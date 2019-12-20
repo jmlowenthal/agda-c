@@ -13,54 +13,70 @@ module Streams.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 open C.C ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
 
+_≅[_]_ : ∀ { α β } → Stream α → (Expr β → Expr α → Expr β) → Stream α → Set
+_≅[_]_ {α} {β} s f t = ∀ { z x } → fold f z s x ≅ₚ fold f z t x
+
 _≅_ : ∀ { α } → Rel (Stream α) 0ℓ
-s ≅ t = ∀ { β } { z : Expr β } { f x } → fold f z s x ≅ₚ fold f z t x
+_≅_ {α} s t = ∀ { β } { f : Expr β → Expr α → Expr β } → s ≅[ f ] t
 
-≅-trans : ∀ { α } → Transitive (_≅_ {α})
-≅-trans {α} A B = IsEquivalence.trans ≅ₚ-equiv A B
+≅[]-equiv : ∀ { α β f } → IsEquivalence (λ a b → _≅[_]_ {α} {β} a f b)
+≅[]-equiv {α} {β} {f} = record {
+  refl = IsEquivalence.refl ≅ₚ-equiv ;
+  trans = λ A B → IsEquivalence.trans ≅ₚ-equiv A B ;
+  sym = λ A → IsEquivalence.sym ≅ₚ-equiv A }
 
-≅-equiv : ∀ { α } → IsEquivalence (_≅_ { α })
+≅-equiv : ∀ { α } → IsEquivalence (_≅_ {α})
 ≅-equiv {α} = record {
   refl = IsEquivalence.refl ≅ₚ-equiv ;
-  trans = ≅-trans {α} ;
-  sym = {!!} }
+  trans = λ A B {_} {f} → IsEquivalence.trans ≅ₚ-equiv (A {f = f}) (B {f = f}) ;
+  sym = λ A {_} {f} → IsEquivalence.sym ≅ₚ-equiv (A {f = f}) }
 
 ≅-setoid : ∀ { α : c_type } → Setoid _ _
-≅-setoid { α } = record {
+≅-setoid {α} = record {
   Carrier = Stream α ;
-  _≈_ = _≅_ ;
-  isEquivalence = ≅-equiv }
+  _≈_ = _≅_ {α} ;
+  isEquivalence = ≅-equiv {α} }
 
 import Relation.Binary.Reasoning.Setoid as Reasoning
-open module ≅-Reasoning {α : c_type} = Reasoning (≅-setoid {α})
+open module ≅-Reasoning {α} = Reasoning (≅-setoid {α})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_) public
 
 infix 1 begin⟨_⟩_
-begin⟨_⟩_ : (α : c_type) → ∀ {x y} → _IsRelatedTo_ {α} x y → x ≅ y
-begin⟨_⟩_ α {x} {y} = begin_ {α} {x} {y}
+begin⟨_⟩_ : ∀ { α β } { x y : Stream α }
+  → (f : Expr β → Expr α → Expr β) → x IsRelatedTo y → x ≅[ f ] y
+begin⟨ f ⟩ (relTo x≅y) = x≅y {f = f}
 
 map-map : ∀ { α β γ }
   → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Expr β }
   → map f (map g s) ≅ map (f ∘ g) s
 map-map = {!!}
 
+≅ₚ-cong : ∀ { x y : Statement } → (F : Statement → Statement) → x ≅ₚ y → F x ≅ₚ F y
+≅-cong : ∀ { α } { β : Set } { x y : β → Statement } → (F : (β → Statement) → Stream α) → ((b : β) → x b ≅ₚ y b) → F x ≅ F y
+
+decl-cong : ∀ { α } { f g : Ref α → Statement }
+  → (∀ (r : Ref α) → f r ≅ₚ g r) → (decl α f) ≅ₚ (decl α g)
+
 map-id : ∀ { α } → ∀ { s : Stream α } → map id s ≅ s
-map-id {α} {s@(linear (producer (init , for (bound , index))))} = {!!}
-  -- begin
-  --   map id s
-  --   ≡⟨⟩
-  --   linear (producer (init , for (bound , λ s i k → index s i (λ e → decl α λ t → t ≔ id e ； k (★ t)))))
-  --   ≡⟨⟩
-  --   linear (producer (init , for (bound , λ s i k → index s i (λ e → decl α λ t → t ≔ e ； k (★ t)))))
-  --   ≅⟨ {!cong!} ⟩
-  --   linear (producer (init , for (bound , λ s i k → index s i (λ e → decl α λ t → k e))))
-  --   ≅⟨ {!!} ⟩
-  --   linear (producer (init , for (bound , λ s i k → index s i (λ e → k e))))
-  --   ≡⟨⟩
-  --   linear (producer (init , for (bound , index)))
-  --   ≡⟨⟩
-  --   s
-  -- ∎
+map-id {α} {s@(linear (producer (init , for (bound , index))))} {f = f} =
+  let wrap : (_ → Expr Int → (Expr α → Statement) → Statement) → Stream α
+      wrap index = linear (producer (init , for (bound , index)))
+  in
+  begin⟨ f ⟩
+    map id s
+    ≡⟨⟩
+    wrap (λ s i k → index s i (λ e → decl α λ t → t ≔ id e ； k (★ t)))
+    ≡⟨⟩
+    wrap (λ s i k → index s i (λ e → decl α λ t → t ≔ e ； k (★ t)))
+    ≅⟨ ≅-cong {β = (Expr α → Statement) × Expr α} (λ a → wrap (λ s i k → index s i (λ e → a (k , e)))) (λ { (k , e) → decl-cong (λ r → ≔-subst {x = r} {e = e} {f = k}) }) ⟩
+    wrap (λ s i k → index s i (λ e → decl α λ t → k e))
+    ≅⟨ {!!} ⟩
+    wrap (λ s i k → index s i (λ e → k e))
+    ≡⟨⟩
+    wrap index
+    ≡⟨⟩
+    s
+  ∎
 
 filter-filter : ∀ { α }
   → ∀ { s : Stream α } → ∀ { f : Expr α → Expr Bool } → ∀ { g : Expr α → Expr Bool }
