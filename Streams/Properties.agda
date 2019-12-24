@@ -42,13 +42,82 @@ decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
 map-map : ∀ { α β γ }
   → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Expr β }
   → map f (map g s) ≅ map (f ∘ g) s
-map-map = {!!}
-
-≅-cong : ∀ { α } (β : Set) { a b : β → Statement } → (F : (β → Statement) → Stream α) → ((i : β) → a i ≅ₚ b i) → F a ≅ F b
-≅-cong {α} β {a} {b} F a≅b f {z} {x} = {!!}
-
-decl-cong : ∀ { α } { f g : Ref α → Statement }
-  → (∀ (r : Ref α) → f r ≅ₚ g r) → (decl α f) ≅ₚ (decl α g)
+map-map {α} {β} {γ} {s@(linear (producer (init , for (bound , index))))} {f} {g} F {z} {x} =
+  let wrap : ∀ {τ} → (_ → Expr Int → (Expr τ → Statement) → Statement) → Stream τ
+      wrap index = linear (producer (init , for (bound , index)))
+  in
+  begin
+    fold F z (map f (map g s)) x
+    ≡⟨⟩
+    fold F z (
+      map f (wrap λ s i k →
+        index s i (λ e →
+          decl β λ t →
+          t ≔ g e ；
+          k (★ t)))
+    ) x
+    ≡⟨⟩
+    fold F z (
+      wrap λ s i k →
+        (λ s i k →
+          index s i (λ e →
+            decl β λ t →
+            t ≔ g e ；
+            k (★ t))
+        )
+        s
+        i
+        (λ e →
+          decl γ λ t →
+          t ≔ f e ；
+          k (★ t))
+    ) x
+    ≡⟨⟩
+    fold F z (
+      wrap λ s i k →
+        index s i (λ e →
+          decl β λ t₁ →
+          t₁ ≔ g e ；
+          decl γ λ t₂ →
+          t₂ ≔ f (★ t₁) ；
+          k (★ t₂))
+    ) x
+    ≅⟨
+      ≅ₚ-cong
+      {v = (Expr γ → Statement) ∷ Expr α ∷ Ref β ∷ []}
+      {w = []}
+      (λ c → fold F z (wrap λ s i k → index s i (λ e → decl β λ t₁ → c k e t₁)) x)
+      (λ k e t₁ → t₁ ≔ g e ； decl γ λ t₂ → t₂ ≔ f (★ t₁) ； k (★ t₂))
+      (λ k e t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
+      (≔-subst {f = (λ ★t₁ → decl γ λ t₂ → t₂ ≔ f ★t₁ ； _)})
+    ⟩
+    fold F z (
+      wrap λ s i k →
+        index s i (λ e →
+          decl β λ t₁ →
+          decl γ λ t₂ →
+          t₂ ≔ f (g e) ；
+          k (★ t₂))
+    ) x
+    ≅⟨
+      ≅ₚ-cong
+      {v = (Expr γ → Statement) ∷ Expr α ∷ []}
+      {w = []}
+      (λ c → fold F z (wrap (λ s i k → index s i (λ e → c k e))) x)
+      (λ k e → decl β λ t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
+      (λ k e → decl γ λ t → t ≔ f (g e) ； k (★ t))
+      decl-elim
+    ⟩
+    fold F z (
+      wrap λ s i k →
+        index s i (λ e →
+          decl γ λ t →
+          t ≔ f (g e) ；
+          k (★ t))
+    ) x
+    ≡⟨⟩
+    fold F z (map (f ∘ g) s) x
+  ∎
 
 postulate ≅-cong : ∀ { α } { A : Set } (f : (A → Stream α) → Stream α) (x y : A → Stream α) → (∀ i → x i ≅ y i) → f x ≅ f y
 
