@@ -37,7 +37,7 @@ import Relation.Binary.Reasoning.Setoid as Reasoning
 open module ≅-Reasoning = Reasoning (≅ₚ-setoid {v = []})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_) public
 
-decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
+postulate ≅-cong : ∀ { α } { A : Set } (f : (A → Stream α) → Stream α) (x y : A → Stream α) → (∀ i → x i ≅ y i) → f x ≅ f y
 
 map-map : ∀ { α β γ }
   → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Expr β }
@@ -118,8 +118,100 @@ map-map {α} {β} {γ} {s@(linear (producer (init , for (bound , index))))} {f} 
     ≡⟨⟩
     fold F z (map (f ∘ g) s) x
   ∎
-
-postulate ≅-cong : ∀ { α } { A : Set } (f : (A → Stream α) → Stream α) (x y : A → Stream α) → (∀ i → x i ≅ y i) → f x ≅ f y
+map-map {α} {β} {γ} {s@(linear (producer (init , unfolder (term , card , step))))} {f} {g} F {z} {x} =
+  let wrap : ∀ {τ} → (_ → (Expr τ → Statement) → Statement) → Stream τ
+      wrap step = linear (producer (init , unfolder (term , card , step)))
+  in
+  begin
+    fold F z (map f (map g s)) x
+    ≡⟨⟩
+    fold F z (
+      map f (wrap λ s k →
+        step s (λ e →
+          decl β λ t →
+          t ≔ g e ；
+          k (★ t)))
+    ) x
+    ≡⟨⟩
+    fold F z (
+      wrap λ s k →
+        (λ s k →
+          step s (λ e →
+            decl β λ t →
+            t ≔ g e ；
+            k (★ t))
+        )
+        s
+        (λ e →
+          decl γ λ t →
+          t ≔ f e ；
+          k (★ t))
+    ) x
+    ≡⟨⟩
+    fold F z (
+      wrap λ s k →
+        step s (λ e →
+          decl β λ t₁ →
+          t₁ ≔ g e ；
+          decl γ λ t₂ →
+          t₂ ≔ f (★ t₁) ；
+          k (★ t₂))
+    ) x
+    ≅⟨
+      ≅ₚ-cong
+      {v = (Expr γ → Statement) ∷ Expr α ∷ Ref β ∷ []}
+      {w = []}
+      (λ c → fold F z (wrap λ s k → step s (λ e → decl β λ t₁ → c k e t₁)) x)
+      (λ k e t₁ → t₁ ≔ g e ； decl γ λ t₂ → t₂ ≔ f (★ t₁) ； k (★ t₂))
+      (λ k e t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
+      (≔-subst {f = (λ ★t₁ → decl γ λ t₂ → t₂ ≔ f ★t₁ ； _)})
+    ⟩
+    fold F z (
+      wrap λ s k →
+        step s (λ e →
+          decl β λ t₁ →
+          decl γ λ t₂ →
+          t₂ ≔ f (g e) ；
+          k (★ t₂))
+    ) x
+    ≅⟨
+      ≅ₚ-cong
+      {v = (Expr γ → Statement) ∷ Expr α ∷ []}
+      {w = []}
+      (λ c → fold F z (wrap (λ s k → step s (λ e → c k e))) x)
+      (λ k e → decl β λ t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
+      (λ k e → decl γ λ t → t ≔ f (g e) ； k (★ t))
+      decl-elim
+    ⟩
+    fold F z (
+      wrap λ s k →
+        step s (λ e →
+          decl γ λ t →
+          t ≔ f (g e) ；
+          k (★ t))
+    ) x
+    ≡⟨⟩
+    fold F z (map (f ∘ g) s) x
+  ∎
+map-map {α} {β} {γ} {s@(nested (p , gen))} {f} {g} F {z} {x} =
+  begin
+    fold F z (map f (map g s)) x
+    ≡⟨⟩
+    fold F z (map f (nested (p , (λ a → map g (gen a))))) x
+    ≡⟨⟩
+    fold F z (nested (p , λ a → map f (map g (gen a)))) x
+    ≅⟨
+      ≅-cong
+      (λ s → nested (p , λ a → s a))
+      (λ a → map f (map g (gen a)))
+      (λ a → map (f ∘ g) (gen a))
+      (λ i → map-map {α} {β} {γ} {gen _} {f} {g})
+      F
+    ⟩
+    fold F z (nested (p , λ a → map (f ∘ g) (gen a))) x
+    ≡⟨⟩
+    fold F z (map (f ∘ g) s) x
+  ∎
 
 map-id : ∀ { α } → ∀ { s : Stream α } → map id s ≅ s
 map-id {α} {s@(linear (producer (init , for (bound , index))))} F {z} {x} =
