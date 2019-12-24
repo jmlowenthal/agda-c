@@ -88,6 +88,21 @@ data State : Set where
   𝒮 : Statement → Continuation → Env → State
   -- TODO: Side effects
 
+Congruence : ∀ { a l } { A : Set a } → Rel A l → Set _
+Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
+
+Clos : ∀ { n } → (Vec Set n) → Set → Set
+Clos [] B = B
+Clos (h ∷ t) B = h → Clos t B
+
+lift : ∀ { n } { v : Vec Set n } { A : Set } { B : Set }
+  → Clos v (A → B) → A → Clos v B
+lift {v = []} clos = clos
+lift {v = h ∷ t} clos a x = lift (clos x) a
+
+Closure : ∀ { n } → (Vec Set n) → Set
+Closure v = Clos v Statement
+
 record Semantics : Set₁ where
   field
     _⊢_⇒_ : ∀ { α } → ∀ { v : ⟦ α ⟧ } → Env → Expr α → Value α v → Set
@@ -169,6 +184,7 @@ record Semantics : Set₁ where
   Terminating : State → Set
   Terminating S = ∃ λ S' → S ↝* S' × Stuck S'
 
+  infix 0 _≅ₛ_
   _≅ₛ_ : Rel State 0ℓ
   X ≅ₛ Y = ∀ { S₁ S₂ : State }
     → (¬ Terminating X × ¬ Terminating Y)
@@ -180,6 +196,7 @@ record Semantics : Set₁ where
     ≅ₛ-subst : ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
       → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
       → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
+    ≅ₛ-cong : Congruence _≅ₛ_
 
 open Semantics ⦃ ... ⦄
 
@@ -304,17 +321,27 @@ cong₃ f refl refl refl = refl
 
 -- PROGRAM EQUIVALENCE
 
-_≅ₚ_ : ∀ ⦃ _ : Semantics ⦄ → Rel Statement 0ℓ
-_≅ₚ_ x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
+infix 0 _≅ₚ_
+_≅ₚ_ : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → Rel (Closure v) 0ℓ
+_≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
+_≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
-≅ₚ-equiv : ∀ ⦃ _ : Semantics ⦄ → IsEquivalence _≅ₚ_
-≅ₚ-equiv = record {
-  refl = IsEquivalence.refl ≅ₛ-equiv ;
-  sym = λ i~j → IsEquivalence.sym ≅ₛ-equiv i~j ;
-  trans = λ i~j j~k → IsEquivalence.trans ≅ₛ-equiv i~j j~k }
+≅ₚ-refl : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → Reflexive (_≅ₚ_ {v = v})
+≅ₚ-refl {v = []} = IsEquivalence.refl ≅ₛ-equiv
+≅ₚ-refl {v = x ∷ v} = ≅ₚ-refl {v = v}
 
--- ≅ₚ-cong : ∀ ⦃ _ : Semantics ⦄ { x y : Statement } { f : Statement → Statement }
---   → x ≅ₚ y → f x ≅ₚ f y
+≅ₚ-sym : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → Symmetric (_≅ₚ_ {v = v})
+≅ₚ-sym {v = []} i~j = IsEquivalence.sym ≅ₛ-equiv i~j
+≅ₚ-sym {v = x ∷ v} i~j = ≅ₚ-sym {v = v} i~j
+
+≅ₚ-trans : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → Transitive (_≅ₚ_ {v = v})
+≅ₚ-trans {v = []} i~j j~k = IsEquivalence.trans ≅ₛ-equiv i~j j~k
+≅ₚ-trans {v = x ∷ v} i~j j~k = ≅ₚ-trans {v = v} i~j j~k
+
+≅ₚ-equiv : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → IsEquivalence (_≅ₚ_ {v = v})
+≅ₚ-equiv = record { refl = ≅ₚ-refl ; sym = ≅ₚ-sym ; trans = ≅ₚ-trans }
+
+postulate ≅ₚ-cong : ∀ ⦃ _ : Semantics ⦄ { n m } { v : Vec Set n } { w : Vec Set m } → ∀ ( f : Closure v → Closure w ) (x y : Closure v) → x ≅ₚ y → f x ≅ₚ f y
 
 β-if-true' : ∀ ⦃ _ : Semantics ⦄ { x y : Statement } { k E S₁ S₂ }
   → 𝒮 (if true then x else y) k E ↝* S₁ → 𝒮 x k E ↝* S₂ → Stuck S₁ → Stuck S₂
