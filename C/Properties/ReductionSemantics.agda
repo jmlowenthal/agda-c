@@ -63,14 +63,6 @@ data _↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → Ref α → Value α v → Env
   xα↦v∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { v : ⟦ α ⟧ }
     → x ↦ val v ∈ E → x ↦ val v ∈ (y , E)
 
--- _↦_∈_ : ∀ { α } { v : ⟦ α ⟧ } → (x : Ref α) → (V : Value α v) → (E : Env) → ∀ { _ : x ∈ E } → Set
--- (x ↦ val v ∈ _) {x∈x↦v,E {v = w}} = v ≡ w
--- (x ↦ val v ∈ _) {x∈x,E} = ⊥
--- (x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yβ↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
--- (x ↦ val v ∈ (_ , E)) {xα∈yβ,E x∈E} = (x ↦ val v ∈ E) {x∈E}
--- (x ↦ val v ∈ (_ ↦ _ , E)) {xα∈yα↦w,E x∈E} = (x ↦ val v ∈ E) {x∈E}
--- (x ↦ val v ∈ (_ , E)) {xα∈yα,E x∈E} = (x ↦ val v ∈ E) {x∈E}
-
 _∉_ : ∀ { α } → Ref α → Env → Set
 x ∉ E = ¬ (x ∈ E)
 
@@ -151,8 +143,7 @@ record Semantics : Set₁ where
       → ∀ { s₁ s₂ : Statement } → 𝒮 (s₁ ； s₂) k E ↝ 𝒮 s₁ (s₂ then k) E
     ↝-decl : ∀ { E : Env } → ∀ { k : Continuation }
       → ∀ { α } → ∀ { f : Ref α → Statement }
-      → ∀ { x : Ref α } → ∀ { _ : ¬ (x ∈ E) }
-      → 𝒮 (decl α f) k E ↝ 𝒮 (f x) k (x , E) 
+      → ∃ λ (x : Ref α) → (x ∉ E) × (𝒮 (decl α f) k E ↝ 𝒮 (f x) k (x , E))
     ↝-nop : ∀ { E : Env } → ∀ { k : Continuation } → ∀ { s : Statement }
       → 𝒮 nop (s then k) E ↝ 𝒮 s k E
     ↝-for : ∀ { E : Env } → ∀ { k : Continuation }
@@ -378,3 +369,5 @@ postulate ≅ₚ-cong : ∀ ⦃ _ : Semantics ⦄ { n m } { v : Vec Set n } { w 
 ...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
           t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
+
+postulate decl-elim : ∀ ⦃ _ : Semantics ⦄ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
