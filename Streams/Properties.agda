@@ -310,10 +310,131 @@ filter-filter : ∀ { α }
 filter-filter = {!!}
 
 filter-true : ∀ { α } → ∀ { s : Stream α } → filter (λ x → true) s ≅ s
-filter-true = {!!}
+filter-true {α} {s@(linear prod)} F {z} {x} =
+  begin
+    fold F z (filter (λ _ → true) s) x
+    ≡⟨⟩ -- by definition of filter
+    fold F z (
+      nested (
+        prod ,
+        λ x →
+          linear (
+            producer (
+              (λ k → k x) ,
+              unfolder (
+                (λ a r → r ≔ (λ _ → true) a) ,
+                atMost1 ,
+                λ a k → k a))))) x
+    ≡⟨⟩ -- by definition of fold
+    (
+    x ≔ z ；
+    foldRaw (λ e →
+      foldRaw
+        (λ a → x ≔ F (★ x) a)
+        (linear (
+          producer (
+            (λ k → k e) ,
+            unfolder (
+              (λ a r → r ≔ true) ,
+              atMost1 ,
+              λ a k → k a)))))
+      s
+    )
+    ≡⟨⟩ -- by definition of foldRaw
+    (
+    x ≔ z ；
+    foldRaw (λ e →
+      (λ k → k e) λ sp →
+        decl Bool λ cond →
+        (λ a r → r ≔ true) sp cond ；
+        if ★ cond then
+          (λ a k → k a) sp (λ a → x ≔ F (★ x) a)
+        else
+          nop) s
+    )
+    ≡⟨⟩ -- by function application
+    (
+    x ≔ z ；
+    foldRaw (λ e →
+      decl Bool λ cond →
+      cond ≔ true ；
+      if ★ cond then
+        x ≔ F (★ x) e
+      else
+        nop) s
+    )
+    ≅⟨
+      ≅ₚ-cong
+      {v = Ref Bool ∷ Expr α ∷ []}
+      {w = []}
+      (λ S → x ≔ z ； foldRaw (λ e → decl Bool λ cond → S cond e) s)
+      (λ cond e → cond ≔ true ； if ★ cond then x ≔ F (★ x) e else nop)
+      (λ cond e → if true then x ≔ F (★ x) e else nop)
+      (≔-subst {f = λ ★cond → if ★cond then _ else _})
+    ⟩
+    (
+    x ≔ z ；
+    foldRaw (λ e →
+      decl Bool λ cond →
+      if true then
+        x ≔ F (★ x) e
+      else
+        nop) s
+    )
+    ≅⟨
+      ≅ₚ-cong
+      {v = Ref Bool ∷ Expr α ∷ []}
+      {w = []}
+      (λ S → x ≔ z ； foldRaw (λ e → decl Bool λ cond → S cond e) s)
+      (λ cond e → if true then x ≔ F (★ x) e else _)
+      (λ cond e → x ≔ F (★ x) e)
+      β-if-true
+    ⟩
+    (
+    x ≔ z ；
+    foldRaw (λ e →
+      decl Bool λ cond →
+      x ≔ F (★ x) e) s
+    )
+    ≅⟨
+      ≅ₚ-cong
+      {v = Expr α ∷ []}
+      {w = []}
+      (λ S → x ≔ z ； foldRaw S s)
+      (λ e → decl Bool λ cond → x ≔ F (★ x) e)
+      (λ e → x ≔ F (★ x) e)
+      decl-elim
+    ⟩
+    (
+    x ≔ z ；
+    foldRaw (λ a → x ≔ F (★ x) a) s
+    )
+    ≡⟨⟩ -- by definition of fold
+    fold F z s x
+  ∎
+filter-true {α} {s@(nested (prod , f))} F {z} {x} =
+  begin
+    fold F z (filter (λ _ → true) s) x
+    ≡⟨⟩ -- by definition of filter
+    fold F z (
+      nested (
+        prod ,
+        λ a → filter (λ _ → true) (f a))) x
+    ≅⟨
+      ≅-cong
+      (λ S → nested (prod , λ a → S a))
+      (λ a → filter (λ _ → true) (f a))
+      (λ a → f a)
+      (λ a → filter-true {s = f a})
+      F
+    ⟩
+    fold F z (nested (prod , λ a → f a)) x
+    ≡⟨⟩ -- by (λ a → f a) ≡ f
+    fold F z s x
+  ∎
 
 filter-false : ∀ { α } → ∀ { s : Stream α }
-  → filter (λ x → false) s ≅ {!nil!}
+  → filter (λ x → false) s ≅ {!!}
 filter-false = {!!}
 
 filter-map : ∀ { α β }

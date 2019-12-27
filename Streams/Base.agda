@@ -113,7 +113,7 @@ foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
   init λ sp →
     decl Bool λ cond →
     term sp cond ；
-    if ★ cond then step sp consumer ； nop  else nop
+    if ★ cond then step sp consumer else nop
 foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
   init λ sp →
     decl Bool λ cond →
