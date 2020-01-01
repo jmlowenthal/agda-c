@@ -10,6 +10,7 @@ open import Data.Product using (_×_ ; _,_ ; ∃ ; proj₁ ; proj₂)
 open import Data.Vec using (Vec; _∷_; [])
 open import Data.Nat.Properties
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 import Induction.WellFounded as Wf
 open import Function
 import Level
@@ -41,14 +42,6 @@ data SStream (α : Set) ⦃ _ : C ⦄ : Set₁ where
 
 Stream : ∀ ⦃ _ : C ⦄ → c_type → Set₁
 Stream α = SStream (Expr α)
-
-data _≺_ ⦃ _ : C ⦄ : REL (∃ λ α → SStream α) (∃ λ β → SStream β) Level.zero where
-  l≺n : ∀ { α β γ } { p₁ : Producer α } { p₂ : Producer γ } { f : γ → SStream β }
-    → (α , linear p₁) ≺ (β , nested (p₂ , f))
-
-data _≺′_ ⦃ _ : C ⦄ : REL (∃ λ α → Producer α) (∃ λ β → Producer β) Level.zero where
-  u≺f : ∀ { α β σ₁ σ₂ } { x : (σ₁ → _) × _ } { y : (σ₂ → _) × _ } { a b }
-    → (β , producer (b , unfolder y)) ≺′ (α , producer (a , for x))
 
 forUnfold : ∀ ⦃ _ : C ⦄ → ∀ { α } → Producer α → Producer α
 forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
@@ -115,34 +108,32 @@ unfold { α } { ζ } f x =
     )
 
 foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (α → Statement) → SStream α → Statement
-foldRaw consumer s = go s consumer (Wf.acc (λ { _ l≺n → Wf.acc (λ { _ () }) }))
+foldRaw consumer s = go s consumer {size s} {refl}
   where
-    go : ∀ { α } (x : SStream α) → (α → Statement) → Wf.Acc _≺_ (α , x) → Statement
-    go (linear (producer (init , for (bound , index)))) consumer _ = 
+    -- Show that the SStream is always getting 'smaller', for termination checking
+    size : ∀ { α } → SStream α → ℕ
+    size (linear _) = 0
+    size (nested _) = 1
+    go : ∀ { α } (x : SStream α) → (α → Statement) → {n : ℕ} { _ : n ≡ size x } → Statement
+    go (linear (producer (init , for (bound , index)))) consumer = 
       init (λ sp →
         decl Int λ l →
         bound sp l ；
         for ⟨ int 0 ⟩ to ★ l then λ i → index sp (★ i) consumer)
-    go (linear (producer (init , unfolder (term , atMost1 , step)))) consumer _ =
+    go (linear (producer (init , unfolder (term , atMost1 , step)))) consumer =
       init λ sp →
         decl Bool λ cond →
         term sp cond ；
         if ★ cond then step sp consumer else nop
-    go (linear (producer (init , unfolder (term , many , step)))) consumer _ =
+    go (linear (producer (init , unfolder (term , many , step)))) consumer =
       init λ sp →
         decl Bool λ cond →
         term sp cond ；
         while ★ cond then
           step sp consumer ；
           term sp cond
-    go (nested (prod , f)) consumer (Wf.acc rs) =
-      go (linear prod) (λ e → go (f e) consumer (Wf.acc (access e))) (rs _ l≺n)
-        where
-          access : (e : _) → (y : ∃ λ α → SStream α) → y ≺ (_ , f e) → Wf.Acc _≺_ y
-          access e (α , linear x) y≺fe
-            with f e | y≺fe
-          ... | linear _ | ()
-          ... | nested _ | _ = rs _ l≺n
+    go (nested (prod , f)) consumer {1} =
+      go (linear prod) (λ e → go (f e) consumer {size (f e)} {refl}) {0} {refl}
 
 -- e.g. collectToList = fold (λ l a → a ∷ l) []
 fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Expr ζ → Expr α → Expr ζ) → Expr ζ → Stream α → (Ref ζ → Statement)
@@ -177,10 +168,15 @@ filter { α = α } f = flatmap (
   λ x → linear (producer ((λ k → k x) , unfolder ((λ a r → r ≔ f a) , atMost1 , λ a k → k a))))
 
 addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → Producer α → Producer α
-addToProducer new s = go new s (Wf.acc (λ { _ u≺f → Wf.acc (λ _ ()) }))
+addToProducer new s = go new s {size s} {refl}
   where
-    go : ∀ { α } → (Ref Bool → Statement) → (x : Producer α) → Wf.Acc _≺′_ (α , x) → Producer α
-    go new (producer (init , unfolder (term , many , step))) _ =
+    -- Show that the Producer is always getting 'smaller', for termination checking
+    size : ∀ { α } → Producer α → ℕ
+    size (producer (_ , unfolder _)) = 0
+    size (producer (_ , for _)) = 1
+    go : ∀ { α } → (Ref Bool → Statement) → (x : Producer α)
+      → { n : ℕ } { _ : n ≡ size x } → Producer α
+    go new (producer (init , unfolder (term , many , step))) =
       producer ((init , unfolder (
         (λ s r →
           decl Bool λ a →
@@ -189,10 +185,10 @@ addToProducer new s = go new s (Wf.acc (λ { _ u≺f → Wf.acc (λ _ ()) }))
           term s b ；
           r ≔ (★ a) && (★ b))
         , many , step)))
-    go new (producer (init , unfolder (term , atMost1 , step))) _ =
+    go new (producer (init , unfolder (term , atMost1 , step))) =
       producer (init , unfolder (term , atMost1 , step))
-    go new (producer (init , for x)) (Wf.acc rs) =
-      go new (forUnfold (producer (init , for x))) (rs _ u≺f)
+    go new (producer (init , for x)) {1} =
+      go new (forUnfold (producer (init , for x))) {0} {refl}
 
 moreTermination : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → SStream α → SStream α
 moreTermination new (linear p) = linear (addToProducer new p)
