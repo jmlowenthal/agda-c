@@ -107,39 +107,41 @@ unfold { α } { ζ } f x =
       producer ((init , unfolder (term , many , step)))
     )
 
-foldRaw : ∀ ⦃ _ : C ⦄ → ∀ { α } → (α → Statement) → SStream α → Statement
-foldRaw consumer s = go s consumer {size s} {refl}
-  where
-    -- Show that the SStream is always getting 'smaller', for termination checking
-    size : ∀ { α } → SStream α → ℕ
-    size (linear _) = 0
-    size (nested _) = 1
-    go : ∀ { α } (x : SStream α) → (α → Statement) → {n : ℕ} { _ : n ≡ size x } → Statement
-    go (linear (producer (init , for (bound , index)))) consumer = 
-      init (λ sp →
-        decl Int λ l →
-        bound sp l ；
-        for ⟨ int 0 ⟩ to ★ l then λ i → index sp (★ i) consumer)
-    go (linear (producer (init , unfolder (term , atMost1 , step)))) consumer =
-      init λ sp →
-        decl Bool λ cond →
-        term sp cond ；
-        if ★ cond then step sp consumer else nop
-    go (linear (producer (init , unfolder (term , many , step)))) consumer =
-      init λ sp →
-        decl Bool λ cond →
-        term sp cond ；
-        while ★ cond then
-          step sp consumer ；
-          term sp cond
-    go (nested (prod , f)) consumer {1} =
-      go (linear prod) (λ e → go (f e) consumer {size (f e)} {refl}) {0} {refl}
+-- Show that the SStream is always getting 'smaller', for termination checking
+∥_∥ₛ : ∀ ⦃ _ : C ⦄ { α } → SStream α → ℕ
+∥ linear _ ∥ₛ = 0
+∥ nested _ ∥ₛ = 1
+
+foldRaw : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → (x : SStream α)
+  → {n : ℕ} { _ : n ≡ ∥ x ∥ₛ } → Statement
+foldRaw consumer (linear (producer (init , for (bound , index)))) = 
+  init (λ sp →
+    decl Int λ l →
+    bound sp l ；
+    for ⟨ int 0 ⟩ to ★ l then λ i → index sp (★ i) consumer)
+foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
+  init λ sp →
+    decl Bool λ cond →
+    term sp cond ；
+    if ★ cond then step sp consumer else nop
+foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
+  init λ sp →
+    decl Bool λ cond →
+    term sp cond ；
+    while ★ cond then
+      step sp consumer ；
+      term sp cond
+foldRaw consumer (nested (prod , f)) {1} =
+  foldRaw (λ e → foldRaw consumer (f e) {∥ f e ∥ₛ} {refl}) (linear prod) {0} {refl}
+
+fold' : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → SStream α → Statement
+fold' f s = foldRaw f s {∥ s ∥ₛ} {refl}
 
 -- e.g. collectToList = fold (λ l a → a ∷ l) []
 fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Expr ζ → Expr α → Expr ζ) → Expr ζ → Stream α → (Ref ζ → Statement)
 fold { ζ = ζ } f z s acc =
   acc ≔ z ；
-  foldRaw (λ a → acc ≔ f (★ acc) a) s
+  fold' (λ a → acc ≔ f (★ acc) a) s
 
 mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → (β → Statement) → Statement)
   → SStream α → SStream β
@@ -167,28 +169,30 @@ filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Expr α → Expr Bool) �
 filter { α = α } f = flatmap (
   λ x → linear (producer ((λ k → k x) , unfolder ((λ a r → r ≔ f a) , atMost1 , λ a k → k a))))
 
+-- Show that the Producer is always getting 'smaller', for termination checking
+∥_∥ₚ : ∀ ⦃ _ : C ⦄ { α } → Producer α → ℕ
+∥ producer (_ , unfolder _) ∥ₚ = 0
+∥ producer (_ , for _) ∥ₚ = 1
+
+addToProducerRaw : ∀ ⦃ _ : C ⦄ { α } → (Ref Bool → Statement) → (p : Producer α)
+  → { n : ℕ } { _ : n ≡ ∥ p ∥ₚ } → Producer α
+addToProducerRaw new (producer (init , unfolder (term , many , step))) =
+  producer ((init , unfolder (
+    (λ s r →
+      decl Bool λ a →
+      new a ；
+      decl Bool λ b →
+      term s b ；
+      r ≔ (★ a) && (★ b))
+    , many , step)))
+addToProducerRaw new (producer (init , unfolder (term , atMost1 , step))) =
+  producer (init , unfolder (term , atMost1 , step))
+addToProducerRaw new (producer (init , for x)) {1} =
+  addToProducerRaw new (forUnfold (producer (init , for x))) {0} {refl}
+
+
 addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → Producer α → Producer α
-addToProducer new s = go new s {size s} {refl}
-  where
-    -- Show that the Producer is always getting 'smaller', for termination checking
-    size : ∀ { α } → Producer α → ℕ
-    size (producer (_ , unfolder _)) = 0
-    size (producer (_ , for _)) = 1
-    go : ∀ { α } → (Ref Bool → Statement) → (x : Producer α)
-      → { n : ℕ } { _ : n ≡ size x } → Producer α
-    go new (producer (init , unfolder (term , many , step))) =
-      producer ((init , unfolder (
-        (λ s r →
-          decl Bool λ a →
-          new a ；
-          decl Bool λ b →
-          term s b ；
-          r ≔ (★ a) && (★ b))
-        , many , step)))
-    go new (producer (init , unfolder (term , atMost1 , step))) =
-      producer (init , unfolder (term , atMost1 , step))
-    go new (producer (init , for x)) {1} =
-      go new (forUnfold (producer (init , for x))) {0} {refl}
+addToProducer new p = addToProducerRaw new p {∥ p ∥ₚ} {refl}
 
 moreTermination : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → SStream α → SStream α
 moreTermination new (linear p) = linear (addToProducer new p)

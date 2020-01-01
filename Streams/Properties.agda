@@ -328,8 +328,8 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     ≡⟨⟩ -- by definition of fold
     (
     x ≔ z ；
-    foldRaw (λ e →
-      foldRaw
+    fold' (λ e →
+      fold'
         (λ a → x ≔ F (★ x) a)
         (linear (
           producer (
@@ -340,10 +340,10 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
               λ a k → k a)))))
       s
     )
-    ≡⟨⟩ -- by definition of foldRaw
+    ≡⟨⟩ -- by definition of fold'
     (
     x ≔ z ；
-    foldRaw (λ e →
+    fold' (λ e →
       (λ k → k e) λ sp →
         decl Bool λ cond →
         (λ a r → r ≔ true) sp cond ；
@@ -355,7 +355,7 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     ≡⟨⟩ -- by function application
     (
     x ≔ z ；
-    foldRaw (λ e →
+    fold' (λ e →
       decl Bool λ cond →
       cond ≔ true ；
       if ★ cond then
@@ -367,14 +367,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Ref Bool ∷ Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； foldRaw (λ e → decl Bool λ cond → S cond e) s)
+      (λ S → x ≔ z ； fold' (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → cond ≔ true ； if ★ cond then x ≔ F (★ x) e else nop)
       (λ cond e → if true then x ≔ F (★ x) e else nop)
       (≔-subst {f = λ ★cond → if ★cond then _ else _})
     ⟩
     (
     x ≔ z ；
-    foldRaw (λ e →
+    fold' (λ e →
       decl Bool λ cond →
       if true then
         x ≔ F (★ x) e
@@ -385,14 +385,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Ref Bool ∷ Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； foldRaw (λ e → decl Bool λ cond → S cond e) s)
+      (λ S → x ≔ z ； fold' (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → if true then x ≔ F (★ x) e else _)
       (λ cond e → x ≔ F (★ x) e)
       β-if-true
     ⟩
     (
     x ≔ z ；
-    foldRaw (λ e →
+    fold' (λ e →
       decl Bool λ cond →
       x ≔ F (★ x) e) s
     )
@@ -400,14 +400,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； foldRaw S s)
+      (λ S → x ≔ z ； fold' S s)
       (λ e → decl Bool λ cond → x ≔ F (★ x) e)
       (λ e → x ≔ F (★ x) e)
       decl-elim
     ⟩
     (
     x ≔ z ；
-    foldRaw (λ a → x ≔ F (★ x) a) s
+    fold' (λ a → x ≔ F (★ x) a) s
     )
     ≡⟨⟩ -- by definition of fold
     fold F z s x
