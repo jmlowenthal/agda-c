@@ -76,6 +76,10 @@ data Continuation : Set where
   stop : Continuation
   _then_ : Statement → Continuation → Continuation
 
+data SideEffects : Set where
+  [] : SideEffects
+  _∷_ : ℤ → SideEffects → SideEffects
+
 data State : Set where
   𝒮 : Statement → Continuation → Env → State
   -- TODO: Side effects
