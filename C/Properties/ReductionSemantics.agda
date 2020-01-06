@@ -136,6 +136,10 @@ filter-var {α} ≟-ref x ((β , y) ∷ t)
 ...     | no _ = (β , y) ∷ (filter-var ≟-ref x t)
 ...     | yes refl = filter-var ≟-ref x t
 
+data _covers_ : Env → List (∃ λ β → Ref β) → Set where
+  empty : ∀ { E } → E covers []
+  includes : ∀ { α t E } { x : Ref α } → x ∈ E → E covers t → E covers ((α , x) ∷ t)
+
 record Semantics : Set₁ where
   field
     ≟-ref : ∀ { α } → Decidable {A = Ref α} _≡_
