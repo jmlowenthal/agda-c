@@ -3,6 +3,7 @@
 open import C.Base
 open import Function
 open import Relation.Binary
+open import Relation.Nullary.Decidable
 open import Level using (0ℓ)
 open import Data.Product using (∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
 open import Algebra.FunctionProperties
@@ -10,13 +11,19 @@ open import Data.Unit
 open import Data.Empty
 open import Data.Sum
 open import Data.Integer as ℤ using (ℤ ; +_)
+import Data.Integer.DivMod as ℤ÷
 import Data.Integer.Properties as ℤₚ
+import Data.Nat as ℕ
+import Data.Nat.Properties as ℕₚ
 open import Relation.Nullary
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.Construct.Closure.Transitive
+  hiding (_++_)
 open import Relation.Binary.Construct.Closure.ReflexiveTransitive
-open import Data.Vec
+open import Data.Vec using (Vec ; [] ; _∷_)
+open import Data.List
+open import Data.List.Membership.Propositional using () renaming (_∈_ to _∈′_)
 
 module C.Properties.ReductionSemantics ⦃ _ : C ⦄ where
 
@@ -99,8 +106,81 @@ lift {v = h ∷ t} clos a x = lift (clos x) a
 Closure : ∀ { n } → (Vec Set n) → Set
 Closure v = Clos v Statement
 
+_⊆_ : ∀ { A } → List A → List A → Set
+[] ⊆ b = ⊤
+(x ∷ a) ⊆ b = x ∈′ b × a ⊆ b
+
+≟-ctype : Decidable {A = c_type} _≡_
+≟-ctype Int Int = yes refl
+≟-ctype Int Bool = no (λ ())
+≟-ctype Int (Array y n) = no (λ ())
+≟-ctype Bool Int = no (λ ())
+≟-ctype Bool Bool = yes refl
+≟-ctype Bool (Array y n) = no (λ ())
+≟-ctype (Array x n) Int = no (λ ())
+≟-ctype (Array x n) Bool = no (λ ())
+≟-ctype (Array x n) (Array y m)
+  with n ℕ.≟ m | ≟-ctype x y
+... | yes refl | yes refl = yes refl
+... | yes refl | no ¬p = no (λ { refl → ¬p refl })
+... | no ¬p | yes refl = no (λ { refl → ¬p refl })
+... | no ¬q | no ¬p = no (λ { refl → ¬p refl })
+
+
+filter-var : ∀ { α } → Decidable {A = Ref α} _≡_ → Ref α → List (∃ λ β → Ref β) → List (∃ λ β → Ref β)
+filter-var {α} _ _ [] = []
+filter-var {α} ≟-ref x ((β , y) ∷ t)
+  with ≟-ctype α β
+... | no _ = (β , y) ∷ (filter-var ≟-ref x t)
+... | yes refl with ≟-ref x y
+...     | no _ = (β , y) ∷ (filter-var ≟-ref x t)
+...     | yes refl = filter-var ≟-ref x t
+
 record Semantics : Set₁ where
   field
+    ≟-ref : ∀ { α } → Decidable {A = Ref α} _≡_
+    
+    fvᵣ : ∀ { α } → Ref α → List (∃ λ β → Ref β)
+    fvₑ : ∀ { α } → Expr α → List (∃ λ β → Ref β)
+    fvₛ : Statement → List (∃ λ β → Ref β)
+    
+    fv-ref : ∀ { α } { x : Ref α } → (α , x) ∈′ fvᵣ x
+    fv-index : ∀ { α n } { e : Ref (Array α n) } { i }
+      → fvᵣ e ⊆ fvᵣ (_[_] e i) × fvₑ i ⊆ fvᵣ (_[_] e i)
+    
+    fv-nat : ∀ { n } → fvₑ ⟨ n ⟩ ≡ []
+    fv-+ : ∀ { x y } → fvₑ x ⊆ fvₑ (x + y) × fvₑ y ⊆ fvₑ (x + y)
+    fv-* : ∀ { x y } → fvₑ x ⊆ fvₑ (x * y) × fvₑ y ⊆ fvₑ (x * y)
+    fv-∸ : ∀ { x y } → fvₑ x ⊆ fvₑ (x - y) × fvₑ y ⊆ fvₑ (x - y)
+    fv-/ : ∀ { x y } → fvₑ x ⊆ fvₑ (x / y) × fvₑ y ⊆ fvₑ (x / y)
+    fv-< : ∀ { x y } → fvₑ x ⊆ fvₑ (x < y) × fvₑ y ⊆ fvₑ (x < y)
+    fv-<= : ∀ { x y } → fvₑ x ⊆ fvₑ (x <= y) × fvₑ y ⊆ fvₑ (x <= y)
+    fv-> : ∀ { x y } → fvₑ x ⊆ fvₑ (x > y) × fvₑ y ⊆ fvₑ (x > y)
+    fv->= : ∀ { x y } → fvₑ x ⊆ fvₑ (x >= y) × fvₑ y ⊆ fvₑ (x >= y)
+    fv-== : ∀ { x y } → fvₑ x ⊆ fvₑ (x == y) × fvₑ y ⊆ fvₑ (x == y)
+    fv-true : fvₑ true ≡ []
+    fv-false : fvₑ false ≡ []
+    fv-|| : ∀ { x y } → fvₑ x ⊆ fvₑ (x || y) × fvₑ y ⊆ fvₑ (x || y)
+    fv-&& : ∀ { x y } → fvₑ x ⊆ fvₑ (x && y) × fvₑ y ⊆ fvₑ (x && y)
+    fv-! : ∀ { x } → fvₑ (! x) ≡ fvₑ x
+    fv-deref : ∀ { α } { x : Ref α } → (α , x) ∈′ fvₑ (★ x)
+    
+    fv-if : ∀ { e x y }
+      → fvₑ e ⊆ fvₛ (if e then x else y)
+        × fvₛ x ⊆ fvₛ (if e then x else y)
+        × fvₛ y ⊆ fvₛ (if e then x else y)
+    fv-assignment : ∀ { α } { x : Ref α } { e : Expr α }
+      → fvᵣ x ⊆ fvₛ (x ≔ e) × fvₑ e ⊆ fvₛ (x ≔ e)
+    fv-seq : ∀ { x y } → fvₛ x ⊆ fvₛ (x ； y) × fvₛ y ⊆ fvₛ (x ； y)
+    fv-decl : ∀ { α } { f : Ref α → Statement } { x : Ref α }
+      → filter-var ≟-ref x (fvₛ (f x)) ⊆ fvₛ (decl α f)
+    fv-nop : fvₛ nop ≡ []
+    fv-for : ∀ { l u } { f : Ref Int → Statement }
+      → fvₑ l ⊆ fvₛ (for l to u then f)
+        × fvₑ u ⊆ fvₛ (for l to u then f)
+        × (∀ { x } → filter-var ≟-ref x (fvₛ (f x)) ⊆ fvₛ (for l to u then f))
+    fv-while : ∀ { e s } → fvₑ e ⊆ fvₛ (while e then s) × fvₛ s ⊆ fvₛ (while e then s)
+
     _⊢_⇒_ : ∀ { α } → ∀ { v : ⟦ α ⟧ } → Env → Expr α → Value α v → Set
     ⊢-total : ∀ { α E } { e : Expr α } → ∃ λ v → (E ⊢ e ⇒ val v)
     ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
@@ -123,9 +203,9 @@ record Semantics : Set₁ where
     ∸-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y'
       → E ⊢ x - y ⇒ val (x' ℤ.- y')
-    -- /-eval : ∀ { E x y x' y' }
-    --   → E ⊢ x ⇒ v-int x' → E ⊢ y ⇒ v-int y'
-    --   → E ⊢ x / y ⇒ v-int (x' ℤ./ y')
+    /-eval : ∀ { E x y x' y' }
+      → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → (y≠0 : False (ℤ.∣ y' ∣ ℕ.≟ 0))
+      → E ⊢ x / y ⇒ val ((x' ℤ÷.div y') {y≠0})
     true-eval : ∀ { E } → E ⊢ true ⇒ val 𝔹.true
     false-eval : ∀ { E } → E ⊢ false ⇒ val 𝔹.false
     ||-eval : ∀ { E x y x' y' }
