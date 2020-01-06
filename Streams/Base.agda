@@ -190,7 +190,6 @@ addToProducerRaw new (producer (init , unfolder (term , atMost1 , step))) =
 addToProducerRaw new (producer (init , for x)) {1} =
   addToProducerRaw new (forUnfold (producer (init , for x))) {0} {refl}
 
-
 addToProducer : ∀ ⦃ _ : C ⦄ → ∀ { α } → (Ref Bool → Statement) → Producer α → Producer α
 addToProducer new p = addToProducerRaw new p {∥ p ∥ₚ} {refl}
 
@@ -249,9 +248,13 @@ take n (nested { β = α } (p , f)) =
 nil : ∀ ⦃ _ : C ⦄ → ∀ { α } → Stream α
 nil = linear (producer { σ = ⊤ } ((λ x → x ⊤.tt) , for ((λ _ _ → nop) , λ _ _ _ → nop)))
 
+-- iota n
+-- The infinite stream of natural numbers starting at n
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 iota n = unfold (λ n → (true , n , n + ⟨ int 1 ⟩)) ⟨ int n ⟩
 
+-- nat n
+-- The stream of natural numbers less than n
 nat : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
 nat n = unfold (λ x → (x < ⟨ int n ⟩ , x , x + ⟨ int 1 ⟩)) ⟨ int 0 ⟩
 
