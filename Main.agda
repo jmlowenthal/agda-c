@@ -40,5 +40,5 @@ sum : ∀ ⦃ _ : C ⦄ → Stream Int → Ref Int → Statement
 sum = fold (λ x y → x + y) ⟨ + 0 ⟩
 
 main =
-  let ex = print (filter (λ x → (x / ⟨ + 2 ⟩) == ⟨ + 0 ⟩) (iota 0) ▹ sum) in
+  let ex = print ((iota 0) ▹ filter (λ x → (x / ⟨ + 2 ⟩) == ⟨ + 0 ⟩) ▹ sum) in
      run (IO.putStr ex)
