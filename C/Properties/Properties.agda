@@ -121,6 +121,18 @@ cong₃ f refl refl refl = refl
 
 -- PROGRAM EQUIVALENCE
 
+Clos : ∀ { n } → (Vec Set n) → Set → Set
+Clos [] B = B
+Clos (h ∷ t) B = h → Clos t B
+
+lift : ∀ { n } { v : Vec Set n } { A : Set } { B : Set }
+  → Clos v (A → B) → A → Clos v B
+lift {v = []} clos = clos
+lift {v = h ∷ t} clos a x = lift (clos x) a
+
+Closure : ∀ { n } → (Vec Set n) → Set
+Closure v = Clos v Statement
+
 infix 0 _≅ₚ_
 _≅ₚ_ : ∀ ⦃ _ : Semantics ⦄ { n } { v : Vec Set n } → Rel (Closure v) 0ℓ
 _≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E

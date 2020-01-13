@@ -22,107 +22,25 @@ open import Relation.Binary.Construct.Closure.Transitive
   hiding (_++_)
 open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 open import Data.Vec using (Vec ; [] ; _∷_)
-open import C.Properties.FreeVariables as FV
+import C.Properties.FreeVariables as FV
 
 open C.C ⦃ ... ⦄
-open FV.FreeVariables ⦃ ... ⦄
+
+open ≡-Reasoning
 
 module C.Properties.ReductionSemantics
   ⦃ _ : C ⦄
-  { _⊑_ : Rel (∃ λ β → Ref β) Level.zero }
-  { isStrictTotalOrder : IsStrictTotalOrder _≡_ _⊑_ }
+  { _~_ : Rel (∃ λ β → Ref β) Level.zero }
+  { isStrictTotalOrder : IsStrictTotalOrder _≡_ _~_ }
   ⦃ _ : FV.FreeVariables isStrictTotalOrder ⦄ where
 
-⟦_⟧ : c_type → Set
-⟦ Int ⟧ = ℤ
-⟦ Bool ⟧ = 𝔹
-⟦ Array α n ⟧ = Vec ⟦ α ⟧ n
+open FV.FreeVariables ⦃ ... ⦄
+open FV isStrictTotalOrder
 
-data Value : (α : c_type) → ⟦ α ⟧ → Set where
-  val : ∀ { α } → (v : ⟦ α ⟧) → Value α v
-
-data Env : Set where
-  _↦_,_ : ∀ { α } → ∀ { v : ⟦ α ⟧ } → Ref α → Value α v → Env → Env
-  _,_ : ∀ { α } → Ref α → Env → Env
-  ε : Env
-
-data _∈nv_ : ∀ { α } → Ref α → Env → Set where
-  x∈x↦v,E : ∀ { α } { v : ⟦ α ⟧ } {x : Ref α} {E : Env}
-    → x ∈nv (x ↦ val v , E)
-  x∈x,E : ∀ { α } { x : Ref α } { E : Env }
-    → x ∈nv (x , E)
-  xα∈yβ↦w,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β } { w : ⟦ β ⟧ } { W : Value β w }
-    → x ∈nv E → x ∈nv (y ↦ W , E)
-  xα∈yβ,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β }
-    → x ∈nv E → x ∈nv (y , E)
-  xα∈yα↦w,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { w : ⟦ α ⟧ } { W : Value α w }
-    → x ∈nv E → x ∈nv (y ↦ W , E)
-  xα∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y }
-    → x ∈nv E → x ∈nv (y , E)
-
-data _↦_∈nv_ : ∀ { α } { v : ⟦ α ⟧ } → Ref α → Value α v → Env → Set where
-  x↦v∈x↦v,E : ∀ { α } { v : ⟦ α ⟧ } {x : Ref α} {E : Env}
-    → x ↦ val v ∈nv (x ↦ val v , E)
-  xα↦v∈yβ↦w,E :
-    ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β }
-    { v : ⟦ α ⟧ } { w : ⟦ β ⟧ }
-    → x ↦ val v ∈nv E → x ↦ val v ∈nv (y ↦ val w , E)
-  xα↦v∈yβ,E : ∀ { α β } { x : Ref α } { E : Env } { y : Ref β } { α≢β : α ≢ β } { v : ⟦ α ⟧ }
-    → x ↦ val v ∈nv E → x ↦ val v ∈nv (y , E)
-  xα↦v∈yα↦w,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { w : ⟦ α ⟧ } { v : ⟦ α ⟧ }
-    → x ↦ val v ∈nv E → x ↦ val v ∈nv (y ↦ val w , E)
-  xα↦v∈yα,E : ∀ { α } { x y : Ref α } { E : Env } { x≢y : x ≢ y } { v : ⟦ α ⟧ }
-    → x ↦ val v ∈nv E → x ↦ val v ∈nv (y , E)
-
-_∉nv_ : ∀ { α } → Ref α → Env → Set
-x ∉nv E = ¬ (x ∈nv E)
-
-infixr 4 _⊕_
-_⊕_ : Env → Env → Env
-(x ↦ v , E₁) ⊕ E₂ = x ↦ v , (E₁ ⊕ E₂)
-(x , E₁) ⊕ E₂ = x , (E₁ ⊕ E₂)
-ε ⊕ E₂ = E₂
-
-data Continuation : Set where
-  stop : Continuation
-  _then_ : Statement → Continuation → Continuation
-
-data SideEffects : Set where
-  [] : SideEffects
-  _∷_ : ℤ → SideEffects → SideEffects
-
-data _covers_ : Env → FVSet → Set where
-  nothing : ∀ { E } → E covers empty
-  includes : ∀ { α t E } { x : Ref α } → x ∈nv E → E covers t → E covers (insert (α , x) t)
-
-fvₖ : Continuation → FVSet
-fvₖ stop = empty
-fvₖ (s then k) = fvₛ s ∪ fvₖ k
-
-data State : Set where
-  state :
-    Σ (Statement × Continuation × Env)
-      (λ { (s , k , E) → E covers (fvₛ s ∪ fvₖ k) })
-      → State
-  -- TODO: Side effects
-
-𝒮 : (s : Statement) → (k : Continuation) → (E : Env) → E covers (fvₛ s ∪ fvₖ k) → State
-𝒮 s k E wf = state ((s , k , E) , wf)
+open import C.Properties.State
 
 Congruence : ∀ { a l } { A : Set a } → Rel A l → Set _
 Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
-
-Clos : ∀ { n } → (Vec Set n) → Set → Set
-Clos [] B = B
-Clos (h ∷ t) B = h → Clos t B
-
-lift : ∀ { n } { v : Vec Set n } { A : Set } { B : Set }
-  → Clos v (A → B) → A → Clos v B
-lift {v = []} clos = clos
-lift {v = h ∷ t} clos a x = lift (clos x) a
-
-Closure : ∀ { n } → (Vec Set n) → Set
-Closure v = Clos v Statement
 
 record Semantics : Set₁ where
   field
@@ -160,25 +78,30 @@ record Semantics : Set₁ where
 
     _↝_ : Rel State 0ℓ
     ↝-if-true : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement } { wf }
-      → E ⊢ cond ⇒ val 𝔹.true → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₁ k E ?
+      → E ⊢ cond ⇒ val 𝔹.true
+      → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₁ k E (⊆-covers wf (⊆-cong fv-if₂ ⊆-refl))
     ↝-if-false : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement } { wf }
-      → E ⊢ cond ⇒ val 𝔹.false → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₂ k E ?
+      → E ⊢ cond ⇒ val 𝔹.false
+      → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₂ k E (⊆-covers wf (⊆-cong fv-if₃ ⊆-refl))
     ↝-assignment : ∀ { E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ } { wf }
-      → E ⊢ e ⇒ val v → 𝒮 (id ≔ e) k E wf ↝ 𝒮 nop k (id ↦ val v , E) ?
+      → E ⊢ e ⇒ val v
+      → 𝒮 (id ≔ e) k E wf ↝ 𝒮 nop k (id ↦ val v , E)
+        (grow-env (⊆-covers wf (⊆-cong (fv-nop₁ {fvₛ (id ≔ e)}) ⊆-refl)))
     ↝-seq : ∀ { E k } { s₁ s₂ : Statement } { wf }
-      → 𝒮 (s₁ ； s₂) k E wf ↝ 𝒮 s₁ (s₂ then k) E ?
-    ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
-      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E) ?)
+      → 𝒮 (s₁ ； s₂) k E wf ↝ 𝒮 s₁ (s₂ then k) E (⊆-covers wf fv-seq₁)
+    -- ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
+    --   → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E) ?)
     ↝-nop : ∀ { E k } { s : Statement } { wf }
-      → 𝒮 nop (s then k) E wf ↝ 𝒮 s k E ?
+      → 𝒮 nop (s then k) E wf ↝ 𝒮 s k E (⊆-covers wf fv-nop₂)
     ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { wf }
       → 𝒮 (for l to u then f) k E wf
         ↝ 𝒮 (if (l < u) then (
                 (decl Int λ i → i ≔ l ； f i) ；
                 for (l + ⟨ + 1 ⟩) to u then f)
-             else nop) k E ?
+             else nop) k E (⊆-covers wf ?)
     ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement } { wf }
-      → 𝒮 (while e then s) k E wf ↝ 𝒮 (if e then (s ； while e then s) else nop) k E ?
+      → 𝒮 (while e then s) k E wf ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
+        (⊆-covers wf (⊆-cong (proj₂ (≡⇒⊆ fv-while₁)) ⊆-refl))
     ↝-det : ∀ { S S₁ S₂ } → S ↝ S₁ → S ↝ S₂ → S₁ ≡ S₂
 
   infix 0 _≅ₑ_
@@ -207,8 +130,9 @@ record Semantics : Set₁ where
   field
     ≅ₑ-equiv : ∀ { α } → IsEquivalence (_≅ₑ_ { α })
     ≅ₛ-equiv : IsEquivalence _≅ₛ_
-    ≅ₛ-subst : ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
+    ≅ₛ-subst :
+      ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α } { wf₁ wf₂ }
       → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
-      → 𝒮 (f e₁) k E₁ ? ≅ₛ 𝒮 (f e₂) k E₂ ?
+      → 𝒮 (f e₁) k E₁ wf₁ ≅ₛ 𝒮 (f e₂) k E₂ wf₂
     ≅ₛ-cong : Congruence _≅ₛ_
 
