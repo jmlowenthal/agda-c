@@ -5,6 +5,7 @@ open import Data.Product
 open import Data.List
 open import Data.Unit using (⊤ ; tt)
 open import Algebra.FunctionProperties
+open import Data.Integer using (+_)
 import Data.List.Relation.Binary.Subset.Setoid.Properties as Setoidₚ
 import Level
 
@@ -177,48 +178,70 @@ module _ ⦃ _ : FreeVariables ⦄ where
       ⊆-refl
 
   fv-for₁ : ∀ { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
-    → fvₛ (for l to u then f) ≡ fvₛ (if l < u then (decl Int λ i → i ≔ l ； f i) else nop)
+    → fvₛ (for l to u then f) ≡ fvₛ (
+      if l < u then
+        (decl Int λ i → i ≔ l ； f i) ；
+        for (l + ⟨ + 1 ⟩) to u then f
+      else nop)
   fv-for₁ {l} {u} {f} {x} =
     begin
       fvₛ (for l to u then f)
       ≡˘⟨ fv-for ⟩
       fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡˘⟨ ∪-assoc _ _ _ ⟩
-      (fvₑ l ∪ fvₑ u) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡⟨ cong (λ ○ → ○ ∪ _) (∪-comm _ _) ⟩
-      (fvₑ u ∪ fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      ≡˘⟨ ∪-idem _ ⟩
+      (fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ (fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)))
       ≡⟨ ∪-assoc _ _ _ ⟩
-      fvₑ u ∪ fvₑ l ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡˘⟨ cong (λ ○ → _ ∪ ○ ∪ _) delall-absorb ⟩
-      fvₑ u ∪ (fvₑ l ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      fvₑ l ∪ (fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ (fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)))
       ≡⟨ cong (λ ○ → _ ∪ ○) (∪-assoc _ _ _) ⟩
-      fvₑ u ∪ fvₑ l ∪ delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      ≡˘⟨ cong (λ ○ → _ ∪ _ ∪ _ ∪ ○ ∪ _ ∪ _) ((proj₂ ∪-id) _) ⟩
+      fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ (fvₑ l ∪ empty) ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      ≡˘⟨ cong (λ ○ → _ ∪ _ ∪ _ ∪ (_ ∪ ○) ∪ _ ∪ _) fv-nat ⟩
+      fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ (fvₑ l ∪ fvₑ ⟨ + 1 ⟩) ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      ≡⟨ cong (λ ○ → _ ∪ _ ∪ _ ∪ ○ ∪ _ ∪ _) fv-+ ⟩
+      fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₑ (l + ⟨ + 1 ⟩) ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      ≡⟨ cong (λ ○ → _ ∪ _ ∪ _ ∪ ○) fv-for ⟩
+      fvₑ l ∪ fvₑ u ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
       ≡˘⟨ ∪-assoc _ _ _ ⟩
-      (fvₑ u ∪ fvₑ l) ∪ delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      (fvₑ l ∪ fvₑ u) ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
       ≡⟨ cong (λ ○ → ○ ∪ _ ∪ _) (∪-comm _ _) ⟩
-      (fvₑ l ∪ fvₑ u) ∪ delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡⟨ cong (λ ○ → ○ ∪ _ ∪ _) fv-< ⟩
-      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡˘⟨ cong (λ ○ → _ ∪ ○ ∪ _) ((proj₁ ∪-id) _) ⟩
-      fvₑ (l < u) ∪ (empty ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡˘⟨ cong (λ ○ → _ ∪ (○ ∪ delete-all _ _) ∪ delete-all _ _) delall-elim ⟩
-      fvₑ (l < u) ∪ (delete-all (fvᵣ x) (fvᵣ x) ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))
+      (fvₑ u ∪ fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ ∪-assoc _ _ _ ⟩
+      fvₑ u ∪ fvₑ l ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ cong (λ ○ → _ ∪ ○ ∪ _) delall-absorb ⟩
+      fvₑ u ∪ (fvₑ l ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → _ ∪ ○) (∪-assoc _ _ _) ⟩
+      fvₑ u ∪ fvₑ l ∪ delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ cong (λ ○ → _ ∪ _ ∪ ○) (∪-assoc _ _ _) ⟩
+      fvₑ u ∪ fvₑ l ∪ (delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ ∪-assoc _ _ _ ⟩
+      (fvₑ u ∪ fvₑ l) ∪ (delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → ○ ∪ (_ ∪ _) ∪ _) (∪-comm _ _) ⟩
+      (fvₑ l ∪ fvₑ u) ∪ (delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → ○ ∪ (_ ∪ _) ∪ _) fv-< ⟩
+      fvₑ (l < u) ∪ (delete-all (fvᵣ x) (fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ cong (λ ○ → _ ∪ (○ ∪ _) ∪ _) ((proj₁ ∪-id) _) ⟩
+      fvₑ (l < u) ∪ ((empty ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ cong (λ ○ → _ ∪ ((○ ∪ delete-all _ _) ∪ delete-all _ _) ∪ _) delall-elim ⟩
+      fvₑ (l < u) ∪ ((delete-all (fvᵣ x) (fvᵣ x) ∪ delete-all (fvᵣ x) (fvₑ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡˘⟨ cong (λ ○ → _ ∪ (○ ∪ _) ∪ _) delall-dist ⟩
+      fvₑ (l < u) ∪ (delete-all (fvᵣ x) (fvᵣ x ∪ fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → _ ∪ (delete-all _ ○ ∪ _) ∪ _) fv-assignment ⟩
+      fvₑ (l < u) ∪ (delete-all (fvᵣ x) (fvₛ (x ≔ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
       ≡˘⟨ cong (λ ○ → _ ∪ ○ ∪ _) delall-dist ⟩
-      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvᵣ x ∪ fvₑ l) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡⟨ cong (λ ○ → _ ∪ delete-all _ ○ ∪ _) fv-assignment ⟩
-      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₛ (x ≔ l)) ∪ delete-all (fvᵣ x) (fvₛ (f x))
-      ≡˘⟨ cong (λ ○ → _ ∪ ○) delall-dist ⟩
-      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₛ (x ≔ l) ∪ fvₛ (f x))
-      ≡⟨ cong (λ ○ → _ ∪ delete-all _ ○) fv-seq ⟩
-      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₛ (x ≔ l ； f x))
-      ≡⟨ cong (λ ○ → _ ∪ ○) fv-decl ⟩
-      fvₑ (l < u) ∪ fvₛ (decl Int λ i → i ≔ l ； f i)
+      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₛ (x ≔ l) ∪ fvₛ (f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → _ ∪ delete-all _ ○ ∪ _) fv-seq ⟩
+      fvₑ (l < u) ∪ delete-all (fvᵣ x) (fvₛ (x ≔ l ； f x)) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → _ ∪ ○ ∪ _) fv-decl ⟩
+      fvₑ (l < u) ∪ fvₛ (decl Int λ i → i ≔ l ； f i) ∪ fvₛ (for (l + ⟨ + 1 ⟩) to u then f)
+      ≡⟨ cong (λ ○ → _ ∪ ○) fv-seq ⟩
+      fvₑ (l < u) ∪ fvₛ ((decl Int λ i → i ≔ l ； f i) ； for (l + ⟨ + 1 ⟩) to u then f)
       ≡˘⟨ cong (λ ○ → _ ∪ ○) ((proj₂ ∪-id) _) ⟩
-      fvₑ (l < u) ∪ fvₛ (decl Int λ i → i ≔ l ； f i) ∪ empty
+      fvₑ (l < u) ∪ fvₛ ((decl Int λ i → i ≔ l ； f i) ； for (l + ⟨ + 1 ⟩) to u then f) ∪ empty
       ≡˘⟨ cong (λ ○ → _ ∪ _ ∪ ○) fv-nop ⟩
-      fvₑ (l < u) ∪ fvₛ (decl Int λ i → i ≔ l ； f i) ∪ fvₛ nop
+      fvₑ (l < u) ∪ fvₛ ((decl Int λ i → i ≔ l ； f i) ； for (l + ⟨ + 1 ⟩) to u then f) ∪ fvₛ nop
       ≡⟨ fv-if ⟩
-      fvₛ (if (l < u) then (decl Int λ i → i ≔ l ； f i) else nop)
+      fvₛ (if (l < u) then (decl Int λ i → i ≔ l ； f i) ； for (l + ⟨ + 1 ⟩) to u then f else nop) 
     ∎
 
   fv-while₁ : ∀ { e : Expr Bool } { s : Statement }

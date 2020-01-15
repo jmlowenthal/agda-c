@@ -89,16 +89,17 @@ record Semantics : Set₁ where
         (grow-env (⊆-covers wf (⊆-cong (fv-nop₁ {fvₛ (id ≔ e)}) ⊆-refl)))
     ↝-seq : ∀ { E k } { s₁ s₂ : Statement } { wf }
       → 𝒮 (s₁ ； s₂) k E wf ↝ 𝒮 s₁ (s₂ then k) E (⊆-covers wf fv-seq₁)
-    -- ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
-    --   → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E) ?)
+    ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
+      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E) {!wf!})
     ↝-nop : ∀ { E k } { s : Statement } { wf }
       → 𝒮 nop (s then k) E wf ↝ 𝒮 s k E (⊆-covers wf fv-nop₂)
-    ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { wf }
+    ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { wf } { x : Ref Int }
       → 𝒮 (for l to u then f) k E wf
         ↝ 𝒮 (if (l < u) then (
                 (decl Int λ i → i ≔ l ； f i) ；
                 for (l + ⟨ + 1 ⟩) to u then f)
-             else nop) k E (⊆-covers wf ?)
+             else nop) k E
+             (⊆-covers wf (⊆-cong (proj₂ (≡⇒⊆ (fv-for₁ {x = x}))) ⊆-refl))
     ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement } { wf }
       → 𝒮 (while e then s) k E wf ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
         (⊆-covers wf (⊆-cong (proj₂ (≡⇒⊆ fv-while₁)) ⊆-refl))
