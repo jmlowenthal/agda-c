@@ -3,12 +3,12 @@ import C.Properties.FreeVariables as FV
 open import Relation.Binary
 open import Data.Product using (Σ ; ∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
 open import Relation.Binary.PropositionalEquality
-import Level
 open import Data.Integer as ℤ using (ℤ ; +_)
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Data.Vec using (Vec ; [] ; _∷_)
 open import Relation.Nullary
 open import Data.Unit using (⊤ ; tt)
+import Level
 
 open C.C ⦃ ... ⦄
 
@@ -94,6 +94,8 @@ postulate ∈-to-∈nv : ∀ { α } { x : Ref α } { A E } → x ∈ A → E cov
 ⊆-covers E/A (includes B⊆A x∈A) = includes (∈-to-∈nv x∈A E/A) (⊆-covers E/A B⊆A)
 
 postulate grow-env : ∀ { E A α } { x : Ref α } { v : ⟦ α ⟧ } → E covers A → (x ↦ val v , E) covers A
+
+postulate grow-both : ∀ { E A α } { x : Ref α } → E covers A → (x , E) covers (fvᵣ x ∪ A)
 
 data State : Set where
   state :

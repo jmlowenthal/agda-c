@@ -1,14 +1,14 @@
 module Print.AST where
 
 open import C
-open import Data.Integer
+open import Data.Nat as ℕ using (ℕ)
+open import Data.Integer as ℤ using (ℤ)
 open import Data.String
 
 data IExpr : c_type → Set
 
-data IRef : c_type → Set where
-  index : ∀ { α n } → IRef (Array α n) → IExpr Int → IRef α
-  var : ∀ { α } → String → IRef α
+IRef : c_type → Set
+IRef _ = IExpr Int
 
 data IExpr where
   lit : ℤ → IExpr Int
@@ -56,7 +56,7 @@ C.false AST-C = false
 C._||_ AST-C = or
 C._&&_ AST-C = and
 C.! AST-C = not
-C._[_] AST-C = index
+C._[_] AST-C x i = C._+_ AST-C x i
 C.★ AST-C = deref
 C._≔_ AST-C = assignment
 C.if_then_else_ AST-C = ifthenelse

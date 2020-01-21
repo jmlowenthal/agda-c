@@ -71,6 +71,7 @@ module _ where
     postulate delall-dist : ∀ { X A B } → delete-all X (A ∪ B) ≡ (delete-all X A) ∪ (delete-all X B)
     postulate delall-elim : ∀ { A } → delete-all A A ≡ empty
     postulate delall-absorb : ∀ { A X } → A ∪ delete-all X A ≡ A
+    postulate delall-reinsert : ∀ { A X } → X ∪ delete-all X A ≡ X ∪ A
     postulate ⊆-refl : Reflexive _⊆_
     postulate ∪~⊆ : ∀ { A B } → A ⊆ A ∪ B
     postulate ⊆-cong : Congruent₂ _⊆_ _∪_
@@ -266,3 +267,26 @@ module _ ⦃ _ : FreeVariables ⦄ where
       ≡⟨ fv-if ⟩
       fvₛ (if e then (s ； while e then s) else nop)
     ∎
+
+  fv-decl₁ : ∀ { α } { x : Ref α } { f : Ref α → Statement } { A }
+    → fvₛ (f x) ∪ A ⊆ fvᵣ x ∪ fvₛ (decl α f) ∪ A
+  fv-decl₁ {α} {x} {f} {A}
+    rewrite
+      begin
+        fvᵣ x ∪ fvₛ (decl α f) ∪ A
+        ≡˘⟨ cong (λ ○ → _ ∪ ○ ∪ _) fv-decl ⟩
+        fvᵣ x ∪ delete-all (fvᵣ x) (fvₛ (f x)) ∪ A
+        ≡˘⟨ ∪-assoc _ _ _ ⟩
+        (fvᵣ x ∪ delete-all (fvᵣ x) (fvₛ (f x))) ∪ A
+        ≡⟨ cong (λ ○ → ○ ∪ _) delall-reinsert ⟩
+        (fvᵣ x ∪ fvₛ (f x)) ∪ A
+        ≡⟨ cong (λ ○ → ○ ∪ _) (∪-comm _ _) ⟩
+        (fvₛ (f x) ∪ fvᵣ x) ∪ A 
+        ≡⟨ ∪-assoc _ _ _ ⟩
+        fvₛ (f x) ∪ fvᵣ x ∪ A
+        ≡⟨ cong (λ ○ → _ ∪ ○) (∪-comm _ _) ⟩
+        fvₛ (f x) ∪ A ∪ fvᵣ x
+        ≡˘⟨ ∪-assoc _ _ _ ⟩
+        (fvₛ (f x) ∪ A) ∪ fvᵣ x
+      ∎
+    = ∪~⊆

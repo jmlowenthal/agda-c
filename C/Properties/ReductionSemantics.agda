@@ -90,7 +90,8 @@ record Semantics : Set₁ where
     ↝-seq : ∀ { E k } { s₁ s₂ : Statement } { wf }
       → 𝒮 (s₁ ； s₂) k E wf ↝ 𝒮 s₁ (s₂ then k) E (⊆-covers wf fv-seq₁)
     ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
-      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E) {!wf!})
+      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E)
+        (⊆-covers (grow-both wf) (fv-decl₁ {x = x} {f})))
     ↝-nop : ∀ { E k } { s : Statement } { wf }
       → 𝒮 nop (s then k) E wf ↝ 𝒮 s k E (⊆-covers wf fv-nop₂)
     ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { wf } { x : Ref Int }
