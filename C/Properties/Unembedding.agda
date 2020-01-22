@@ -25,6 +25,7 @@ module TypedWF where
   data Ref : ∀ n → Vec c_type n → c_type → Set where
     zero : ∀ { n α l } → Ref (suc n) (α ∷ l) α
     suc : ∀ { n ctx α β } → Ref n ctx α → Ref (suc n) (β ∷ ctx) α
+    -- deref : Ref n Γ (Array α n) → ∀ m → Ref n Γ α
 
   data Op : c_type → c_type → c_type → Set where
     add sub mul div : Op Int Int Int
@@ -114,8 +115,20 @@ module TypedWF where
   Expr* n Γ α = ∀ impl → Env {impl} n Γ → C.Expr impl α
 
   toExpr* : ∀ { n Γ α } → Expr n Γ α → Expr* n Γ α
-  toExpr* (op _·_ x y) impl env = {!!}
-  toExpr* (not x) impl env = {!!}
+  op₂ : ∀ { α β γ n Γ } → (∀ impl → C.Expr impl α → C.Expr impl β → C.Expr impl γ) → Expr n Γ α → Expr n Γ β → Expr* n Γ γ
+  op₂ _∙_ x y impl env = _∙_ impl (toExpr* x impl env) (toExpr* y impl env)
+  toExpr* (op add x y) = op₂ C._+_ x y
+  toExpr* (op sub x y) = op₂ C._-_ x y
+  toExpr* (op mul x y) = op₂ C._*_ x y
+  toExpr* (op div x y) = op₂ C._/_ x y
+  toExpr* (op lt x y) = op₂ C._<_ x y
+  toExpr* (op lte x y) = op₂ C._<=_ x y
+  toExpr* (op gt x y) = op₂ C._>_ x y
+  toExpr* (op gte x y) = op₂ C._>=_ x y
+  toExpr* (op eq x y) = op₂ C._==_ x y
+  toExpr* (op || x y) = op₂ C._||_ x y
+  toExpr* (op && x y) = op₂ C._&&_ x y
+  toExpr* (not x) impl env = C.!_ impl (toExpr* x impl env)
   toExpr* true impl env = C.true impl
   toExpr* false impl env = C.false impl
   toExpr* (int n) impl env = C.⟨_⟩ impl n
