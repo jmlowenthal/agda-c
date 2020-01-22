@@ -10,14 +10,13 @@ open import Data.Product
 open import Data.Unit using (⊤ ; tt)
 open import Data.Maybe
 open import Data.Fin as 𝔽 using (Fin)
+open import Data.Vec
+open import Data.Bool using () renaming (Bool to 𝔹 ; true to True ; false to False)
 open import Function
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 
-module TypedWF where
-
-  open import Data.Vec
-  open import Data.Bool using () renaming (Bool to 𝔹 ; true to True ; false to False)
+module ℐ where
 
   data Ctx : ∀ n → Vec c_type n → Set where
     wrap : ∀ { n } (v : Vec c_type n) → Ctx n v
@@ -107,67 +106,67 @@ module TypedWF where
     empty : Env 0 []
     extend : ∀ { n Γ α } → Env {impl} n Γ → C.Ref impl α → Env (suc n) (α ∷ Γ)
 
-  lookupT : ∀ { impl n Γ α } → Env {impl} n Γ → Ref n Γ α → C.Ref impl α
-  lookupT (extend _ v) zero = v
-  lookupT (extend env _) (suc r) = lookupT env r
+  pattern ↶⁰ = zero
+  pattern ↶¹ = suc ↶⁰
+  pattern ↶² = suc ↶¹
+  pattern ↶³ = suc ↶²
+  pattern ↶⁴ = suc ↶³
+  pattern ↶⁵ = suc ↶⁴
+  pattern ↶⁶ = suc ↶⁵
+  pattern ↶⁷ = suc ↶⁶
+  pattern ↶⁸ = suc ↶⁷
+  pattern ↶⁹ = suc ↶⁸
 
-  Expr* : ∀ n → Vec c_type n → c_type → Set₁
-  Expr* n Γ α = ∀ impl → Env {impl} n Γ → C.Expr impl α
+lookupT : ∀ { impl n Γ α } → ℐ.Env {impl} n Γ → ℐ.Ref n Γ α → C.Ref impl α
+lookupT (ℐ.extend _ v) ℐ.zero = v
+lookupT (ℐ.extend env _) (ℐ.suc r) = lookupT env r
 
-  toExpr* : ∀ { n Γ α } → Expr n Γ α → Expr* n Γ α
-  op₂ : ∀ { α β γ n Γ } → (∀ impl → C.Expr impl α → C.Expr impl β → C.Expr impl γ) → Expr n Γ α → Expr n Γ β → Expr* n Γ γ
-  op₂ _∙_ x y impl env = _∙_ impl (toExpr* x impl env) (toExpr* y impl env)
-  toExpr* (op add x y) = op₂ C._+_ x y
-  toExpr* (op sub x y) = op₂ C._-_ x y
-  toExpr* (op mul x y) = op₂ C._*_ x y
-  toExpr* (op div x y) = op₂ C._/_ x y
-  toExpr* (op lt x y) = op₂ C._<_ x y
-  toExpr* (op lte x y) = op₂ C._<=_ x y
-  toExpr* (op gt x y) = op₂ C._>_ x y
-  toExpr* (op gte x y) = op₂ C._>=_ x y
-  toExpr* (op eq x y) = op₂ C._==_ x y
-  toExpr* (op || x y) = op₂ C._||_ x y
-  toExpr* (op && x y) = op₂ C._&&_ x y
-  toExpr* (not x) impl env = C.!_ impl (toExpr* x impl env)
-  toExpr* true impl env = C.true impl
-  toExpr* false impl env = C.false impl
-  toExpr* (int n) impl env = C.⟨_⟩ impl n
-  toExpr* (var x) impl env = C.★_ impl (lookupT env x)
+Expr* : ∀ n → Vec c_type n → c_type → Set₁
+Expr* n Γ α = ∀ impl → ℐ.Env {impl} n Γ → C.Expr impl α
 
-  Statement* : ∀ n → Vec c_type n → Set₁
-  Statement* n Γ = ∀ impl → Env {impl} n Γ → C.Statement impl
+toExpr* : ∀ { n Γ α } → ℐ.Expr n Γ α → Expr* n Γ α
+op₂ : ∀ { α β γ n Γ } → (∀ impl → C.Expr impl α → C.Expr impl β → C.Expr impl γ) → ℐ.Expr n Γ α → ℐ.Expr n Γ β → Expr* n Γ γ
+op₂ _∙_ x y impl env = _∙_ impl (toExpr* x impl env) (toExpr* y impl env)
+toExpr* (ℐ.op ℐ.add x y) = op₂ C._+_ x y
+toExpr* (ℐ.op ℐ.sub x y) = op₂ C._-_ x y
+toExpr* (ℐ.op ℐ.mul x y) = op₂ C._*_ x y
+toExpr* (ℐ.op ℐ.div x y) = op₂ C._/_ x y
+toExpr* (ℐ.op ℐ.lt x y) = op₂ C._<_ x y
+toExpr* (ℐ.op ℐ.lte x y) = op₂ C._<=_ x y
+toExpr* (ℐ.op ℐ.gt x y) = op₂ C._>_ x y
+toExpr* (ℐ.op ℐ.gte x y) = op₂ C._>=_ x y
+toExpr* (ℐ.op ℐ.eq x y) = op₂ C._==_ x y
+toExpr* (ℐ.op ℐ.|| x y) = op₂ C._||_ x y
+toExpr* (ℐ.op ℐ.&& x y) = op₂ C._&&_ x y
+toExpr* (ℐ.not x) impl env = C.!_ impl (toExpr* x impl env)
+toExpr* ℐ.true impl env = C.true impl
+toExpr* ℐ.false impl env = C.false impl
+toExpr* (ℐ.int n) impl env = C.⟨_⟩ impl n
+toExpr* (ℐ.var x) impl env = C.★_ impl (lookupT env x)
 
-  toStatement* : ∀ { n Γ } → Statement n Γ → Statement* n Γ
-  toStatement* (if cond x y) impl env =
-    C.if_then_else_ impl
-      (toExpr* cond impl env)
-      (toStatement* x impl env)
-      (toStatement* y impl env)
-  toStatement* (assign x y) impl env =
-    C._≔_ impl (lookupT env x) (toExpr* y impl env)
-  toStatement* (seq x y) impl env =
-    C._；_ impl (toStatement* x impl env) (toStatement* y impl env)
-  toStatement* (decl α f) impl env =
-    C.decl impl α (λ x → toStatement* f impl (extend env x))
+Statement* : ∀ n → Vec c_type n → Set₁
+Statement* n Γ = ∀ impl → ℐ.Env {impl} n Γ → C.Statement impl
 
-  toExpr : ∀ { n Γ α } → Expr* n Γ α → Expr n Γ α
-  toStatement : ∀ { n Γ } → Statement* n Γ → Statement n Γ
-  
-  convert : Statement 0 [] → (∀ ⦃ impl ⦄ → C.Statement impl)
-  convert s ⦃ impl ⦄ = toStatement* s impl empty
+toStatement* : ∀ { n Γ } → ℐ.Statement n Γ → Statement* n Γ
+toStatement* (ℐ.if cond x y) impl env =
+  C.if_then_else_ impl
+    (toExpr* cond impl env)
+    (toStatement* x impl env)
+    (toStatement* y impl env)
+toStatement* (ℐ.assign x y) impl env =
+  C._≔_ impl (lookupT env x) (toExpr* y impl env)
+toStatement* (ℐ.seq x y) impl env =
+  C._；_ impl (toStatement* x impl env) (toStatement* y impl env)
+toStatement* (ℐ.decl α f) impl env =
+  C.decl impl α (λ x → toStatement* f impl (ℐ.extend env x))
 
-module Example where
-  open import Data.Vec
-  open C.C ⦃ ... ⦄
+convert-to : (∀ ⦃ impl ⦄ → C.Statement impl) → ℐ.Statement 0 []
+convert-to s = s ⦃ ℐ.impl ⦄ 0 []
 
-  s₁ : ∀ ⦃ _ : C ⦄ → Statement
-  s₁ = decl Int λ x → decl Int λ y → x ≔ ⟨ ℤ.+ 1 ⟩
+convert-from : ℐ.Statement 0 [] → (∀ ⦃ impl ⦄ → C.Statement impl)
+convert-from s ⦃ impl ⦄ = toStatement* s impl ℐ.empty
 
-  b₁ : TypedWF.Statement 0 []
-  b₁ = s₁ ⦃ TypedWF.impl ⦄ 0 []
+open C.C ⦃ ... ⦄
 
-  _ : TypedWF.Statement 0 []
-  _ = {!b₁!} -- C-c C-n
-
-  _ : ∀ ⦃ _ : C ⦄ → Statement
-  _ = {!TypedWF.convert b₁!} -- C-c C-n
+_ : ℐ.Statement 0 []
+_ = {!convert-to (decl Int λ x → x ≔ ★ x)!}
