@@ -1,43 +1,34 @@
 -- Based in-part on "A formally verified compiler back-end" by Xavier Leroy
 
 open import C
-open import Function
-open import Relation.Binary
-open import Relation.Nullary.Decidable
-open import Level using (0ℓ)
-open import Data.Product using (Σ ; ∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
+
 open import Algebra.FunctionProperties
-open import Data.Unit
+open import C.Properties.State
+open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Data.Empty
-open import Data.Sum
 open import Data.Integer as ℤ using (ℤ ; +_)
+open import Data.Product using (Σ ; ∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
+open import Data.Sum
+open import Data.Unit
+open import Data.Vec using (Vec ; [] ; _∷_)
+open import Function
+open import Level using (0ℓ)
+open import Relation.Binary
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
+open import Relation.Binary.Construct.Closure.Transitive hiding (_++_)
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
+open import Relation.Nullary.Decidable
+
 import Data.Integer.DivMod as ℤ÷
 import Data.Integer.Properties as ℤₚ
 import Data.Nat as ℕ
 import Data.Nat.Properties as ℕₚ
-open import Relation.Nullary
-open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
-open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.Construct.Closure.Transitive
-  hiding (_++_)
-open import Relation.Binary.Construct.Closure.ReflexiveTransitive
-open import Data.Vec using (Vec ; [] ; _∷_)
-import C.Properties.FreeVariables as FV
 
 open C.C ⦃ ... ⦄
-
 open ≡-Reasoning
 
-module C.Properties.ReductionSemantics
-  ⦃ _ : C ⦄
-  { _~_ : Rel (∃ λ β → Ref β) Level.zero }
-  { isStrictTotalOrder : IsStrictTotalOrder _≡_ _~_ }
-  ⦃ _ : FV.FreeVariables isStrictTotalOrder ⦄ where
-
-open FV.FreeVariables ⦃ ... ⦄
-open FV isStrictTotalOrder
-
-open import C.Properties.State
+module C.Properties.ReductionSemantics ⦃ _ : C ⦄ where
 
 Congruence : ∀ { a l } { A : Set a } → Rel A l → Set _
 Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
@@ -77,33 +68,25 @@ record Semantics : Set₁ where
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → E ⊢ x && y ⇒ val (x' 𝔹.∧ y')
 
     _↝_ : Rel State 0ℓ
-    ↝-if-true : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement } { wf }
-      → E ⊢ cond ⇒ val 𝔹.true
-      → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₁ k E (⊆-covers wf (⊆-cong fv-if₂ ⊆-refl))
-    ↝-if-false : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement } { wf }
-      → E ⊢ cond ⇒ val 𝔹.false
-      → 𝒮 (if cond then s₁ else s₂) k E wf ↝ 𝒮 s₂ k E (⊆-covers wf (⊆-cong fv-if₃ ⊆-refl))
-    ↝-assignment : ∀ { E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ } { wf }
-      → E ⊢ e ⇒ val v
-      → 𝒮 (id ≔ e) k E wf ↝ 𝒮 nop k (id ↦ val v , E)
-        (grow-env (⊆-covers wf (⊆-cong (fv-nop₁ {fvₛ (id ≔ e)}) ⊆-refl)))
-    ↝-seq : ∀ { E k } { s₁ s₂ : Statement } { wf }
-      → 𝒮 (s₁ ； s₂) k E wf ↝ 𝒮 s₁ (s₂ then k) E (⊆-covers wf fv-seq₁)
-    ↝-decl : ∀ { E k α } { f : Ref α → Statement } { wf }
-      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E wf ↝ 𝒮 (f x) k (x , E)
-        (⊆-covers (grow-both wf) (fv-decl₁ {x = x} {f})))
-    ↝-nop : ∀ { E k } { s : Statement } { wf }
-      → 𝒮 nop (s then k) E wf ↝ 𝒮 s k E (⊆-covers wf fv-nop₂)
-    ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { wf } { x : Ref Int }
-      → 𝒮 (for l to u then f) k E wf
+    ↝-if-true : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement }
+      → E ⊢ cond ⇒ val 𝔹.true → 𝒮 (if cond then s₁ else s₂) k E ↝ 𝒮 s₁ k E
+    ↝-if-false : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement }
+      → E ⊢ cond ⇒ val 𝔹.false → 𝒮 (if cond then s₁ else s₂) k E ↝ 𝒮 s₂ k E
+    ↝-assignment : ∀ { E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
+      → E ⊢ e ⇒ val v → 𝒮 (id ≔ e) k E ↝ 𝒮 nop k (id ↦ val v , E)
+    ↝-seq : ∀ { E k } { s₁ s₂ : Statement }
+      → 𝒮 (s₁ ； s₂) k E ↝ 𝒮 s₁ (s₂ then k) E
+    ↝-decl : ∀ { E k α } { f : Ref α → Statement }
+      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E ↝ 𝒮 (f x) k (x , E))
+    ↝-nop : ∀ { E k } { s : Statement } → 𝒮 nop (s then k) E ↝ 𝒮 s k E
+    ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
+      → 𝒮 (for l to u then f) k E
         ↝ 𝒮 (if (l < u) then (
                 (decl Int λ i → i ≔ l ； f i) ；
                 for (l + ⟨ + 1 ⟩) to u then f)
              else nop) k E
-             (⊆-covers wf (⊆-cong (proj₂ (≡⇒⊆ (fv-for₁ {x = x}))) ⊆-refl))
-    ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement } { wf }
-      → 𝒮 (while e then s) k E wf ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
-        (⊆-covers wf (⊆-cong (proj₂ (≡⇒⊆ fv-while₁)) ⊆-refl))
+    ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement }
+      → 𝒮 (while e then s) k E ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
     ↝-det : ∀ { S S₁ S₂ } → S ↝ S₁ → S ↝ S₂ → S₁ ≡ S₂
 
   infix 0 _≅ₑ_
@@ -133,8 +116,8 @@ record Semantics : Set₁ where
     ≅ₑ-equiv : ∀ { α } → IsEquivalence (_≅ₑ_ { α })
     ≅ₛ-equiv : IsEquivalence _≅ₛ_
     ≅ₛ-subst :
-      ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α } { wf₁ wf₂ }
+      ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
       → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
-      → 𝒮 (f e₁) k E₁ wf₁ ≅ₛ 𝒮 (f e₂) k E₂ wf₂
+      → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
     ≅ₛ-cong : Congruence _≅ₛ_
 

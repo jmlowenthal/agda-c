@@ -1,36 +1,27 @@
-open import Algebra.FunctionProperties
 open import C
 open import C.Properties.ReductionSemantics
+open import C.Properties.State
+
+open import Algebra.FunctionProperties
 open import Data.Empty
-open import Data.Product using (∃ ; _,_)
 open import Data.Integer as ℤ using (+_)
 open import Data.Integer.Properties as ℤₚ
+open import Data.Product using (∃ ; _,_)
 open import Data.Sum
 open import Data.Vec
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 open import Relation.Binary.Construct.Closure.Transitive
+open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
 import Level
-import C.Properties.FreeVariables as FV
+
+
+module C.Properties.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 
 open C.C ⦃ ... ⦄
-
-module C.Properties.Properties
-  ⦃ _ : C ⦄
-  { _~_ : Rel (∃ λ β → Ref β) Level.zero }
-  { isStrictTotalOrder : IsStrictTotalOrder _≡_ _~_ }
-  ⦃ _ : FV.FreeVariables isStrictTotalOrder ⦄
-  ⦃ _ : Semantics ⦄ where
-
 open Semantics ⦃ ... ⦄
-open FV.FreeVariables ⦃ ... ⦄
-open FV isStrictTotalOrder
-
-open import C.Properties.State
-
 open ≡-Reasoning
 
 -- VALUE JUDGEMENT LEMMAS
@@ -165,7 +156,7 @@ Closure v = Clos v Statement
 
 infix 0 _≅ₚ_
 _≅ₚ_ : ∀ { n } { v : Vec Set n } → Rel (Closure v) Level.zero
-_≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E {!!} ≅ₛ 𝒮 y k E {!!}
+_≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E  ≅ₛ 𝒮 y k E
 _≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
 ≅ₚ-refl : ∀ { n } { v : Vec Set n } → Reflexive (_≅ₚ_ {v = v})
@@ -185,40 +176,39 @@ _≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
 postulate ≅ₚ-cong : ∀ { n m } { v : Vec Set n } { w : Vec Set m } → ∀ ( f : Closure v → Closure w ) (x y : Closure v) → x ≅ₚ y → f x ≅ₚ f y
 
-β-if-true' : ∀ { x y : Statement } { k E S₁ S₂ } { wf₁ : E covers (fvₛ (if true then x else y) ∪ fvₖ k) } { wf₂ }
-  → (𝒮 (if true then x else y) k E wf₁) ↝* S₁ → 𝒮 x k E wf₂ ↝* S₂ → Stuck S₁ → Stuck S₂
-  → S₁ ≡ S₂
--- β-if-true' {x} {_} {k} {E} ε _ S₁↝̸ _ = ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval))
--- β-if-true' {x} {y} {k} {E} (if↝R ◅ R↝*S₁) x↝*S₂ S₁↝̸ S₂↝̸
---   with ↝-det if↝R (↝-if-true true-eval)
--- ... | refl = ↝*-det S₁↝̸ S₂↝̸ R↝*S₁ x↝*S₂
+β-if-true' : ∀ { x y : Statement } { k E S₁ S₂ }
+  → 𝒮 (if true then x else y) k E ↝* S₁ → 𝒮 x k E ↝* S₂ → Stuck S₁ → Stuck S₂ → S₁ ≡ S₂
+β-if-true' {x} {_} {k} {E} ε _ S₁↝̸ _ = ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval))
+β-if-true' {x} {y} {k} {E} (if↝R ◅ R↝*S₁) x↝*S₂ S₁↝̸ S₂↝̸
+  with ↝-det if↝R (↝-if-true true-eval)
+... | refl = ↝*-det S₁↝̸ S₂↝̸ R↝*S₁ x↝*S₂
 
 β-if-true : ∀ { x y : Statement }
   → (if true then x else y) ≅ₚ x
 β-if-true = inj₂ β-if-true'
 
--- β-if-false : ⦃ _ : Equivalence ⦄ → ∀ { x y : Statement }
---   → if false then x else y ≡ y
--- β-if-false = {!!}
+β-if-false : ∀ { x y : Statement } → if false then x else y ≅ₚ y
+β-if-false = {!!}
 
--- η-if : ⦃ _ : Equivalence ⦄ → ∀ { cond : Expr Bool } → ∀ { e : Statement }
---   → if cond then e else e ≡ e
--- η-if = {!!}
+η-if : ∀ { cond : Expr Bool } { e : Statement } → if cond then e else e ≅ₚ e
+η-if = {!!}
 
--- β-while : ⦃ _ : Equivalence ⦄ → ∀ { e₁ : Expr Bool } → ∀ { e₂ : Statement }
---   → while e₁ then e₂ ≡ if e₁ then (e₂ ； while e₁ then e₂) else nop
+β-while : ∀ { e₁ : Expr Bool } { e₂ : Statement }
+  → while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
+β-while = {!!}
 
 ≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
   → (x ≔ e ； f (★ x)) ≅ₚ (f e)
--- ≔-subst {α} {x} {e} {f} {k} {E} {S₁} {S₂}
---   with ⊢-total {α} {E} {e}
--- ... | v , E⊢e⇒v
---     with ≅ₛ-subst {f = f} (deref {x ↦ val v , E} {α} {x} x↦v∈x↦v,E) E⊢e⇒v refl
--- ...   | inj₁ (f[★x]↝ω , f[e]↝ω) =
---         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
---           inj₁ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
--- ...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
---         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
---           t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
+≔-subst {α} {x} {e} {f} {k} {E} {S₁} {S₂}
+  with ⊢-total {α} {E} {e}
+... | v , E⊢e⇒v
+    with ≅ₛ-subst {f = f} (deref {x ↦ val v , E} {α} {x} x↦v∈x↦v,E) E⊢e⇒v refl
+...   | inj₁ (f[★x]↝ω , f[e]↝ω) =
+        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+          inj₁ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
+...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
+        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+          t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
 
-postulate decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
+decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
+decl-elim {α} {f} = {!!}
