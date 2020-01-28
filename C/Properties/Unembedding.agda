@@ -51,14 +51,14 @@ compare-type (Array α n) (Array β m)
 ... | yes refl | no ¬p    = no λ { refl → ¬p refl }
 ... | no ¬p    | _        = no λ { refl → ¬p refl }
 
-tshift' : ∀ { α n m Γ₁ Γ₂ } → (i : ℕ) → Ctx n Γ₁ → Ctx (suc m) (α ∷ Γ₂) → i < n → Ref n Γ₁ α
+tshift' : ∀ { α n m Γ₁ Γ₂ } → (i : ℕ) → Ctx n Γ₁ → Ctx (suc m) (α ∷ Γ₂) → i < n → Maybe (Ref n Γ₁ α)
 tshift' 0 (wrap (h₁ ∷ t₁)) (wrap (α ∷ _)) _
   with compare-type h₁ α
-... | yes refl = zero
-... | no _ = {!!}
-tshift' (suc n) (wrap (h ∷ t)) Γ₂ (s≤s n≤m) = suc (tshift' n (wrap t) Γ₂ n≤m)
+... | yes refl = just zero
+... | no _ = nothing
+tshift' (suc n) (wrap (h ∷ t)) Γ₂ (s≤s n≤m) = tshift' n (wrap t) Γ₂ n≤m >>= λ x → just (suc x)
 
-tshift : ∀ { α n m Γ₁ Γ₂ } → Ctx (suc n) Γ₁ → Ctx (suc m) (α ∷ Γ₂) → Ref (suc n) Γ₁ α
+tshift : ∀ { α n m Γ₁ Γ₂ } → Ctx (suc n) Γ₁ → Ctx (suc m) (α ∷ Γ₂) → Maybe (Ref (suc n) Γ₁ α)
 tshift {n = n} {m} Γ₁ Γ₂ = tshift' ((suc n) ∸ (suc m)) Γ₁ Γ₂ (s≤s (n∸m≤n m n))
 
 data Op : c_type → c_type → c_type → Set where
@@ -162,7 +162,7 @@ C.decl impl α f n Γ₁ =
   where
     v : C.Ref impl α
     v 0 _ = nothing
-    v (suc m) Γ₂ = just (tshift (wrap Γ₂) (wrap (α ∷ Γ₁)))
+    v (suc m) Γ₂ = tshift (wrap Γ₂) (wrap (α ∷ Γ₁))
 C.nop impl n Γ = just nop
 C.for_to_then_ impl l u f n Γ₁ =
   l n Γ₁ >>= λ l →
@@ -172,7 +172,7 @@ C.for_to_then_ impl l u f n Γ₁ =
   where
     v : C.Ref impl Int
     v 0 _ = nothing
-    v (suc m) Γ₂ = just (tshift (wrap Γ₂) (wrap (Int ∷ Γ₁)))
+    v (suc m) Γ₂ = tshift (wrap Γ₂) (wrap (Int ∷ Γ₁))
 C.while_then_ impl e s n Γ =
   e n Γ >>= λ e →
     s n Γ >>= λ s →
@@ -250,18 +250,18 @@ pattern ↶⁷ = Ref.suc ↶⁶
 pattern ↶⁸ = Ref.suc ↶⁷
 pattern ↶⁹ = Ref.suc ↶⁸
 
-open C.C ⦃ ... ⦄
+-- open C.C ⦃ ... ⦄
 
-bad : C.Statement impl
-bad = s ⦃ impl ⦄ v
-  where
-    s : ∀ ⦃ impl ⦄ → C.Ref impl Int → C.Statement impl
-    s ⦃ impl ⦄ r = while (C._<_ impl (★ r) ⟨ ℤ.+ 0 ⟩) then C.nop impl
-    v : C.Ref impl Int
-    v 0 [] = nothing
-    v (suc n) (Int ∷ Γ) = just zero
-    v (suc n) (Bool ∷ Γ) = nothing
-    v (suc n) (Array x n₁ ∷ Γ) = nothing
+-- bad : C.Statement impl
+-- bad = s ⦃ impl ⦄ v
+--   where
+--     s : ∀ ⦃ impl ⦄ → C.Ref impl Int → C.Statement impl
+--     s ⦃ impl ⦄ r = while (C._<_ impl (★ r) ⟨ ℤ.+ 0 ⟩) then C.nop impl
+--     v : C.Ref impl Int
+--     v 0 [] = nothing
+--     v (suc n) (Int ∷ Γ) = just zero
+--     v (suc n) (Bool ∷ Γ) = nothing
+--     v (suc n) (Array x n₁ ∷ Γ) = nothing
 
-_ = {!bad 1 (Int ∷ [])!}
-_ = {!convert-from bad !}
+-- _ = {!bad 1 (Int ∷ [])!}
+-- _ = {!convert-from bad !}
