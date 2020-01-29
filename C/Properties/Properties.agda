@@ -210,5 +210,7 @@ postulate ≅ₚ-cong : ∀ { n m } { v : Vec Set n } { w : Vec Set m } → ∀ 
         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
           t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
 
+import C.Properties.Unembedding as DeB
+
 decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
-decl-elim {α} {f} = {!!}
+decl-elim {α} {f} = ≅ₛ-decl

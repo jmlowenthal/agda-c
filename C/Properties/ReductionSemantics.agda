@@ -119,5 +119,6 @@ record Semantics : Set₁ where
       ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
       → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
       → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
+    ≅ₛ-decl : ∀ { α f k E } → 𝒮 (decl α λ x → f) k E ≅ₛ 𝒮 f k E
     ≅ₛ-cong : Congruence _≅ₛ_
 
