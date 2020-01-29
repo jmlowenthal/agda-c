@@ -128,9 +128,10 @@ foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
   init λ sp →
     decl Bool λ cond →
     term sp cond ；
-    while ★ cond then
+    while ★ cond then (
       step sp consumer ；
       term sp cond
+    )
 foldRaw consumer (nested (prod , f)) {1} =
   foldRaw (λ e → foldRaw consumer (f e) {∥ f e ∥ₛ} {refl}) (linear prod) {0} {refl}
 
