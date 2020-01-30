@@ -1,6 +1,8 @@
 MAlonzo/
+.vscode/
 *.agdai
 *\#*
 *~
 *.o
 *.c
+

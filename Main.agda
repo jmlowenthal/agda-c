@@ -1,6 +1,6 @@
 open import Streams
 open import C
-open import Print
+open import Print.Print
 open import Data.String using (String ; _++_)
 open import IO hiding (return)
 open import Data.Nat using (ℕ)
@@ -39,6 +39,8 @@ square = map (λ x → x * x)
 sum : ∀ ⦃ _ : C ⦄ → Stream Int → Ref Int → Statement
 sum = fold (λ x y → x + y) ⟨ + 0 ⟩
 
-main =
-  let ex = print ((iota 0) ▹ filter (λ x → (x / ⟨ + 2 ⟩) == ⟨ + 0 ⟩) ▹ sum) in
-     run (IO.putStr ex)
+_ = {!print-main (nat 10 ▹ square ▹ sum)!}
+
+-- main =
+--   let ex = print-main ((iota 0) ▹ filter (λ x → (x / ⟨ + 2 ⟩) == ⟨ + 0 ⟩) ▹ sum) in
+--      run (IO.putStr ex)
