@@ -3,10 +3,11 @@ open import C.Properties.ReductionSemantics
 open import C.Properties.State
 
 open import Algebra.FunctionProperties
+open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Data.Empty
 open import Data.Integer as ℤ using (+_)
 open import Data.Integer.Properties as ℤₚ
-open import Data.Product using (∃ ; _,_)
+open import Data.Product using (∃ ; _,_ ; ∃-syntax ; proj₁ ; proj₂)
 open import Data.Sum
 open import Data.Vec
 open import Relation.Binary
@@ -26,9 +27,9 @@ open ≡-Reasoning
 
 -- VALUE JUDGEMENT LEMMAS
 
-⊢-det : ∀ { E α } { e : Expr α } { x y : ⟦ α ⟧ }
-  → E ⊢ e ⇒ val x → E ⊢ e ⇒ val y → x ≡ y
-⊢-det {E} {α} {e} {x} {y} ⇒x ⇒y = IsEquivalence.refl ≅ₑ-equiv {e} {E} {x} {y} ⇒x ⇒y
+-- ⊢-det : ∀ { E α } { e : Expr α } { x y : ⟦ α ⟧ }
+--   → E ⊢ e ⇒ val x → E ⊢ e ⇒ val y → x ≡ y
+-- ⊢-det {E} {α} {e} {x} {y} ⇒x ⇒y = IsEquivalence.refl ≅ₑ-equiv {e} {E} {x} {y} ⇒x ⇒y
 
 cong₃ : ∀ { a b c d : Level.Level } { A : Set a } { B : Set b } { C : Set c } { D : Set d }
   → ∀ (f : A → B → C → D) {x y u v a b}
@@ -89,57 +90,6 @@ cong₃ f refl refl refl = refl
 -- &&-commute : Commutative _≅ₑ_ _&&_ 
 
 
--- REDUCTION LEMMAS
-
-↝*-trans : Transitive _↝*_
-↝*-trans = _◅◅_
-
-↝*-to-↝⁺ : ∀ { A B C } → A ↝ B → B ↝* C → A ↝⁺ C
-↝*-to-↝⁺ A↝B ε = Plus′.[ A↝B ]
-↝*-to-↝⁺ A↝B (B↝X ◅ X↝*C) = A↝B ∷ (↝*-to-↝⁺ B↝X X↝*C)
-
-↝⁺-to-↝* : ∀ { A B } → A ↝⁺ B → A ↝* B
-↝⁺-to-↝* Plus′.[ A↝B ] = A↝B ◅ ε
-↝⁺-to-↝* (A↝X ∷ X↝⁺B) = A↝X ◅ (↝⁺-to-↝* X↝⁺B)
-
-↝̸-transᵇ : ∀ { S S' : State }
-  → S ↝* S' → Terminating S' → Terminating S
-↝̸-transᵇ {S} {S'} S↝*S' (X , S'↝*X , X↝̸) = X , (S↝*S' ◅◅ S'↝*X) , X↝̸
-
-↝̸-transᶠ : ∀ { S S' : State }
-  → S ↝* S' → Terminating S → Terminating S'
-↝̸-transᶠ ε S↝̸ = S↝̸
-↝̸-transᶠ (S↝X ◅ X↝*S') (S , ε , S↝̸) = ⊥-elim (S↝̸ _ S↝X)
-↝̸-transᶠ (S↝A ◅ A↝*S') (X , S↝Y ◅ Y↝*X , X↝̸)
-  with ↝-det S↝A S↝Y
-... | refl = ↝̸-transᶠ A↝*S' (X , Y↝*X , X↝̸)
-
-↝ω-transᵇ : ∀ { X Y : State }
-  → X ↝* Y → ¬ Terminating Y → ¬ Terminating X
-↝ω-transᵇ {X} {Y} X↝*Y Y↝ω X↝̸ = Y↝ω (↝̸-transᶠ X↝*Y X↝̸)
-
-↝ω-transᶠ : ∀ { X Y : State }
-  → X ↝* Y → ¬ Terminating X → ¬ Terminating Y
-↝ω-transᶠ {X} {Y} X↝*Y X↝ω Y↝̸ = X↝ω (↝̸-transᵇ X↝*Y Y↝̸)
-
-↝*-det : ∀ { S S₁ S₂ }
-  → Stuck S₁ → Stuck S₂ → S ↝* S₁ → S ↝* S₂ → S₁ ≡ S₂
-↝*-det S₁↝̸ S₂↝̸ ε ε = refl
-↝*-det S↝̸ S₂↝̸ ε (_◅_ {j = X} S↝X X↝*S₂) = ⊥-elim (S↝̸ X S↝X)
-↝*-det S₁↝̸ S↝̸ (_◅_ {j = X} S↝X X↝*S₂) ε = ⊥-elim (S↝̸ X S↝X)
-↝*-det S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
-  with ↝-det S↝X S↝Y
-... | refl = ↝*-det S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
-
-↝*-det' : ∀ { S S₁ S₂ }
-  → S ↝* S₁ → S ↝* S₂ → Stuck S₂ → S₁ ↝* S₂
-↝*-det' ε S↝*S₂ _ = S↝*S₂
-↝*-det' (S↝X ◅ X↝*S₁) ε S↝̸ = ⊥-elim (S↝̸ _ S↝X)
-↝*-det' (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂) S₂↝̸
-  with ↝-det S↝X S↝Y
-... | refl = ↝*-det' X↝*S₁ Y↝*S₂ S₂↝̸
-
-
 -- PROGRAM EQUIVALENCE
 
 Clos : ∀ { n } → (Vec Set n) → Set → Set
@@ -160,7 +110,7 @@ _≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E  ≅ₛ 𝒮 y k E
 _≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
 ≅ₚ-refl : ∀ { n } { v : Vec Set n } → Reflexive (_≅ₚ_ {v = v})
-≅ₚ-refl {v = []} {x} {k} {E} {wf₁} {wf₂} = IsEquivalence.refl ≅ₛ-equiv
+≅ₚ-refl {v = []} {x} {k} {E} = IsEquivalence.refl ≅ₛ-equiv
 ≅ₚ-refl {v = x ∷ v} = ≅ₚ-refl {v = v}
 
 ≅ₚ-sym : ∀ { n } { v : Vec Set n } → Symmetric (_≅ₚ_ {v = v})
@@ -176,22 +126,18 @@ _≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
 postulate ≅ₚ-cong : ∀ { n m } { v : Vec Set n } { w : Vec Set m } → ∀ ( f : Closure v → Closure w ) (x y : Closure v) → x ≅ₚ y → f x ≅ₚ f y
 
-β-if-true' : ∀ { x y : Statement } { k E S₁ S₂ }
-  → 𝒮 (if true then x else y) k E ↝* S₁ → 𝒮 x k E ↝* S₂ → Stuck S₁ → Stuck S₂ → S₁ ≡ S₂
-β-if-true' {x} {_} {k} {E} ε _ S₁↝̸ _ = ⊥-elim (S₁↝̸ (𝒮 x k E) (↝-if-true true-eval))
-β-if-true' {x} {y} {k} {E} (if↝R ◅ R↝*S₁) x↝*S₂ S₁↝̸ S₂↝̸
-  with ↝-det if↝R (↝-if-true true-eval)
-... | refl = ↝*-det S₁↝̸ S₂↝̸ R↝*S₁ x↝*S₂
-
 β-if-true : ∀ { x y : Statement }
   → (if true then x else y) ≅ₚ x
-β-if-true = inj₂ β-if-true'
+β-if-true = ↝*⇒≅ₛ (↝-if-true true-eval ◅ ε)
 
 β-if-false : ∀ { x y : Statement } → if false then x else y ≅ₚ y
-β-if-false = {!!}
+β-if-false = ↝*⇒≅ₛ (↝-if-false false-eval ◅ ε)
 
 η-if : ∀ { cond : Expr Bool } { e : Statement } → if cond then e else e ≅ₚ e
-η-if = {!!}
+η-if {cond}
+  with ⊢-total {e = cond}
+... | (𝔹.false , ⇒false) = ↝*⇒≅ₛ (↝-if-false ⇒false ◅ ε)
+... | (𝔹.true , ⇒true) = ↝*⇒≅ₛ (↝-if-true ⇒true ◅ ε)
 
 β-while : ∀ { e₁ : Expr Bool } { e₂ : Statement }
   → while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
@@ -199,16 +145,16 @@ postulate ≅ₚ-cong : ∀ { n m } { v : Vec Set n } { w : Vec Set m } → ∀ 
 
 ≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
   → (x ≔ e ； f (★ x)) ≅ₚ (f e)
-≔-subst {α} {x} {e} {f} {k} {E} {S₁} {S₂}
-  with ⊢-total {α} {E} {e}
-... | v , E⊢e⇒v
-    with ≅ₛ-subst {f = f} (deref {x ↦ val v , E} {α} {x} x↦v∈x↦v,E) E⊢e⇒v refl
-...   | inj₁ (f[★x]↝ω , f[e]↝ω) =
-        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
-          inj₁ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
-...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
-        let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
-          t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
+-- ≔-subst {α} {x} {e} {f} {k} {E} {S₁} {S₂}
+--   with ⊢-total {α} {E} {e}
+-- ... | v , E⊢e⇒v
+--     with ≅ₛ-subst {f = f} (deref {x ↦ val v , E} {α} {x} x↦v∈x↦v,E) E⊢e⇒v refl
+-- ...   | inj₁ (f[★x]↝ω , f[e]↝ω) =
+--         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+--           inj₁ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
+-- ...   | inj₂ t = inj₂ (λ x≔e/f[★x]↝*S₁ f[e]↝*S₂ S₁↝̸ S₂↝̸ →
+--         let reduction = ↝-seq ◅ ↝-assignment E⊢e⇒v ◅ ↝-nop ◅ ε in
+--           t (↝*-det' reduction x≔e/f[★x]↝*S₁ S₁↝̸) f[e]↝*S₂ S₁↝̸ S₂↝̸)
 
 import C.Properties.Unembedding as DeB
 
