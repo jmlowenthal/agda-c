@@ -7,17 +7,20 @@ open import Data.List using (List ; [] ; _∷_)
 open import Data.Product
 open import Function using (_∘_)
 import Data.Integer as ℤ
-import Data.Nat.Show as ℕ
+import Data.Nat as ℕ
+import Data.Nat.Show as ℕs
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
 
 print-ctype : c_type → String
 print-ctype Int = "int"
 print-ctype Bool = "int"
-print-ctype (Array α n) = "(" ++ (print-ctype α) ++ ")[" ++ (ℕ.show n) ++ "]" 
+print-ctype (Array α n) = "(" ++ (print-ctype α) ++ ")[" ++ (ℕs.show n) ++ "]" 
 
 print-expr : ∀ { α } → IExpr α → String
 
 print-ref : ∀ { α } → IRef α → String
-print-ref (r , []) = "x" ++ (ℕ.show r)
+print-ref (r , []) = "x" ++ (ℕs.show r)
 print-ref {α} (r , h ∷ t) = (print-ref {α} (r , t)) ++ "[" ++ (print-expr h) ++ "]"
 
 print-expr (lit x) = ℤ.show x
@@ -46,6 +49,12 @@ print-statement (ifthenelse e t f) =
   ++ "}\n"
 print-statement (assignment {α} x e) = (print-ref {α} x) ++ " = " ++ (print-expr e) ++ ";\n"
 print-statement (sequence a b) = (print-statement a) ++ (print-statement b)
+print-statement (declaration α ref@(n , _) f@(assignment {β} (m , _) e))
+  with ≟-ctype α β | n ℕ.≟ m
+... | yes refl | yes refl = print-ctype α ++ " " ++ print-statement f
+... | _ | _ = print-ctype α ++ " " ++ print-ref {α} ref ++ ";\n" ++ print-statement f
+print-statement (declaration α ref (sequence a b)) =
+  print-statement (declaration α ref a) ++ ";\n" ++ print-statement b
 print-statement (declaration α ref f) =
   (print-ctype α) ++ " " ++ (print-ref {α} ref) ++ ";\n" ++ (print-statement f)
 print-statement (for ref l u f) =

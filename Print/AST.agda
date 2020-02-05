@@ -6,6 +6,8 @@ open import Data.Integer as ℤ using (ℤ)
 open import Data.String
 open import Data.List using (List ; _∷_ ; [])
 open import Data.Product
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
 
 data IExpr : c_type → Set
 
