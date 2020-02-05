@@ -1,12 +1,29 @@
 module C.Base where
 
-open import Data.Nat using (ℕ)
+open import Data.Nat using (ℕ ; _≟_)
 open import Data.Integer using (ℤ)
 open import Relation.Binary using (Rel ; IsPartialOrder)
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary using (Dec ; yes ; no)
 
 data c_type : Set where
   Int Bool : c_type -- TODO: Float type
   Array : c_type → (n : ℕ) → c_type
+
+≟-ctype : ∀ (x y : c_type) → Dec (x ≡ y)
+≟-ctype Int Int = yes refl
+≟-ctype Int Bool = no λ ()
+≟-ctype Int (Array _ _) = no λ ()
+≟-ctype Bool Int = no λ ()
+≟-ctype Bool Bool = yes refl
+≟-ctype Bool (Array _ -) = no λ ()
+≟-ctype (Array _ _) Int = no λ ()
+≟-ctype (Array _ _) Bool = no λ ()
+≟-ctype (Array α n) (Array β m)
+  with n ≟ m | ≟-ctype α β
+... | no ¬p | _ = no (λ { refl → ¬p refl })
+... | yes refl | no ¬p = no (λ { refl → ¬p refl })
+... | yes refl | yes refl = yes refl
 
 record C : Set₁ where
   field
