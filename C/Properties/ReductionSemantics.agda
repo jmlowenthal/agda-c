@@ -46,7 +46,7 @@ record Semantics : Set₁ where
       → (E ⊕ (x ↦ val v , (y ↦ val w , ε)) ⊕ E') ⊢ e ⇒ val ev
       → (E ⊕ (y ↦ val w , (x ↦ val v , ε)) ⊕ E') ⊢ e ⇒ val ev
     -- TODO: variants on Env constructor
-    nat : ∀ { E n } → E ⊢ ⟨ n ⟩ ⇒ val n
+    nat : ∀ { E } n → E ⊢ ⟨ n ⟩ ⇒ val n
     deref : ∀ { E α } { x : Ref α } { v : ⟦ α ⟧ }
       → x ↦ val v ∈nv E → (E ⊢ (★ x) ⇒ val v)
     +-eval : ∀ { E x y x' y' }
@@ -121,7 +121,7 @@ record Semantics : Set₁ where
     ≅ₛ-cong : Congruence _≅ₛ_
 
 
--- EXPRESSION EQUIVALENCE
+  -- EXPRESSION EQUIVALENCE
 
   ≅ₑ-refl : ∀ { α } → Reflexive (_≅ₑ_ {α})
   ≅ₑ-refl ⇒v ⇒w = ⊢-det ⇒v ⇒w
