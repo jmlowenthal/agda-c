@@ -244,7 +244,11 @@ take n (nested { β = α } (p , f)) =
   )
 
 -- TODO: drop
--- TODO: zip or zipWith?
+
+postulate zip : ∀ ⦃ _ : C ⦄ { α β } → SStream α → SStream β → SStream (α × β)
+
+zipWith : ∀ ⦃ _ : C ⦄ { α β γ } → (α → β → γ) → SStream α → SStream β → SStream γ
+zipWith f a b = mapRaw (λ { (x , y) k → k (f x y) }) (zip a b)
 
 nil : ∀ ⦃ _ : C ⦄ → ∀ { α } → Stream α
 nil = linear (producer { σ = ⊤ } ((λ x → x ⊤.tt) , for ((λ _ _ → nop) , λ _ _ _ → nop)))
