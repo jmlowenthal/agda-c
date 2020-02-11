@@ -1,14 +1,16 @@
-open import Streams.Base
 open import C
+open import C.Properties.Properties
 open import C.Properties.ReductionSemantics
-open import Function
-open import Function.Nary.NonDependent
-open import Relation.Binary
-open import Level using (0ℓ)
+open import Data.Product using (_×_ ; _,_)
 open import Data.Unit
 open import Data.Vec using (Vec ; _∷_ ; [])
-open import Data.Product using (_×_ ; _,_)
+open import Function
+open import Function.Nary.NonDependent
+open import Level using (0ℓ)
+open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
+open import Streams.Base
+
 import Data.Integer as ℤ
 
 module Streams.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
@@ -434,7 +436,7 @@ filter-true {α} {s@(nested (prod , f))} F {z} {x} =
   ∎
 
 filter-false : ∀ { α } → ∀ { s : Stream α }
-  → filter (λ x → false) s ≅ {!!}
+  → filter (λ x → false) s ≅ nil
 filter-false = {!!}
 
 filter-map : ∀ { α β }
