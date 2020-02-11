@@ -25,7 +25,7 @@ data CardT : Set where
 data ProducerT (α σ : Set) ⦃ _ : C ⦄ : Set where
   -- for : (state → index) × (state → index → continuation → void)
   for : (σ → Ref Int → Statement) × (σ → Expr Int → (α → Statement) → Statement) → ProducerT α σ
-  -- unfolder : (state → terminated?) × cardinality × (state → continuation → void)
+  -- unfolder : (state → continue?) × cardinality × (state → continuation → void)
   unfolder : (σ → Ref Bool → Statement) × CardT × (σ → (α → Statement) → Statement) → ProducerT α σ
 
 -- Producer (element type) ⦃ implementation ⦄
