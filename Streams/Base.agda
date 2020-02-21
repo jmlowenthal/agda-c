@@ -104,7 +104,7 @@ ofArr { α } { n } vec =
   in
     linear (producer (init , for (upb , index)))
 
--- TODO: C optionals / limited C structs
+-- unfold ≡ Functor.fmap
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }
   → (Expr ζ → (Expr Bool × Expr α × Expr ζ)) → Expr ζ → Stream α
 unfold { α } { ζ } f x =
@@ -127,20 +127,20 @@ unfold { α } { ζ } f x =
         a ≔ a' ；
         z ≔ z'
 
-foldRaw : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → (x : SStream α)
+iterRaw : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → (x : SStream α)
   → {n : ℕ} { _ : n ≡ ∥ x ∥ₛ } → Statement
-foldRaw consumer (linear (producer (init , for (bound , index)))) = 
+iterRaw consumer (linear (producer (init , for (bound , index)))) = 
   init (λ sp →
     decl Int λ l →
     l ← bound sp ；
     for ⟨ int 0 ⟩ to ★ l then λ i →
       index sp (★ i) consumer)
-foldRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
+iterRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
   init λ sp →
     decl Bool λ cond →
     cond ← term sp ；
     if ★ cond then step sp consumer else nop
-foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
+iterRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
   init λ sp →
     decl Bool λ cond →
     cond ← term sp ；
@@ -148,17 +148,42 @@ foldRaw consumer (linear (producer (init , unfolder (term , many , step)))) =
       step sp consumer ；
       cond ← term sp
     )
-foldRaw consumer (nested (prod , f)) {1} =
-  foldRaw (λ e → foldRaw consumer (f e) {∥ f e ∥ₛ} {refl}) (linear prod) {0} {refl}
+iterRaw consumer (nested (prod , f)) {1} =
+  iterRaw (λ e → iterRaw consumer (f e) {∥ f e ∥ₛ} {refl}) (linear prod) {0} {refl}
 
-fold' : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → SStream α → Statement
-fold' f s = foldRaw f s {∥ s ∥ₛ} {refl}
+iter : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → SStream α → Statement
+iter f s = iterRaw f s {∥ s ∥ₛ} {refl}
 
--- e.g. collectToList = fold (λ l a → a ∷ l) []
-fold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ } → (Expr ζ → Expr α → Expr ζ) → Expr ζ → Stream α → (Ref ζ → Statement)
-fold { ζ = ζ } f z s acc =
+-- infixr 4 _#_
+-- infixr 4 _#*_
+-- data Exprs ⦃ _ : C ⦄ : { n : ℕ } → Vec c_type (ℕ.suc n) → Set where
+--   _# : ∀ { α } → Expr α → Exprs (α ∷ [])
+--   _#_ : ∀ { α } { n } { v : Vec c_type (ℕ.suc n) } → Expr α → Exprs v → Exprs (α ∷ v)
+
+-- data Refs ⦃ _ : C ⦄ : { n : ℕ } → Vec c_type (ℕ.suc n) → Set where
+--   _#* : ∀ { α } → Ref α → Refs (α ∷ [])
+--   _#*_ : ∀ { α } { n } { v : Vec c_type (ℕ.suc n) } → Ref α → Refs v → Refs (α ∷ v)
+
+-- -- Bulk assignment
+-- [_]_≔*_ : ∀ ⦃ _ : C ⦄ { n } (v : Vec c_type (ℕ.suc n)) → Refs v → Exprs v → Statement
+-- [_]_≔*_ {0} (_ ∷ []) (r #*) (e #) = r ≔ e
+-- [_]_≔*_ {ℕ.suc _} (_ ∷ t) (r #* rs) (e # es) = r ≔ e ； [ t ] rs ≔* es
+
+-- -- Bulk deref
+-- [_]★_ : ∀ ⦃ _ : C ⦄ { n } (v : Vec c_type (ℕ.suc n)) → Refs v → Exprs v
+-- [_]★_ {0} (_ ∷ []) (r #*) = (★ r) #
+-- [_]★_ {ℕ.suc _} (_ ∷ t) (r #* rs) = (★ r) # ([ t ]★ rs)
+
+-- fold : ∀ ⦃ _ : C ⦄ { α n } { ζ : Vec c_type (ℕ.suc n) } → (Exprs ζ → α → Exprs ζ) → Exprs ζ → SStream α → Refs ζ → Statement
+-- fold {ζ = ζ} f z s r =
+--   [ ζ ] r ≔* z ；
+--   iter (λ a → [ ζ ] r ≔* f ([ ζ ]★ r) a ) s
+
+-- fold ≡ 
+fold : ∀ ⦃ _ : C ⦄ { α ζ } → (Expr ζ → α → Expr ζ) → Expr ζ → SStream α → (Ref ζ → Statement)
+fold f z s acc =
   acc ≔ z ；
-  fold' (λ a → acc ≔ f (★ acc) a) s
+  iter (λ a → acc ≔ f (★ acc) a) s
 
 mapRaw : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → (β → Statement) → Statement)
   → SStream α → SStream β

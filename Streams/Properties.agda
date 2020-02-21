@@ -1,7 +1,9 @@
 open import C
 open import C.Properties.Properties
 open import C.Properties.ReductionSemantics
+
 open import Data.Product using (_×_ ; _,_)
+open import Data.Integer as ℤ using (ℤ)
 open import Data.Unit
 open import Data.Vec using (Vec ; _∷_ ; [])
 open import Function
@@ -9,9 +11,8 @@ open import Function.Nary.NonDependent
 open import Level using (0ℓ)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 open import Streams.Base
-
-import Data.Integer as ℤ
 
 module Streams.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 
@@ -330,8 +331,8 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     ≡⟨⟩ -- by definition of fold
     (
     x ≔ z ；
-    fold' (λ e →
-      fold'
+    iter (λ e →
+      iter
         (λ a → x ≔ F (★ x) a)
         (linear (
           producer (
@@ -342,10 +343,10 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
               λ a k → k a)))))
       s
     )
-    ≡⟨⟩ -- by definition of fold'
+    ≡⟨⟩ -- by definition of iter
     (
     x ≔ z ；
-    fold' (λ e →
+    iter (λ e →
       (λ k → k e) λ sp →
         decl Bool λ cond →
         (λ a r → r ≔ true) sp cond ；
@@ -357,7 +358,7 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     ≡⟨⟩ -- by function application
     (
     x ≔ z ；
-    fold' (λ e →
+    iter (λ e →
       decl Bool λ cond →
       cond ≔ true ；
       if ★ cond then
@@ -369,14 +370,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Ref Bool ∷ Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； fold' (λ e → decl Bool λ cond → S cond e) s)
+      (λ S → x ≔ z ； iter (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → cond ≔ true ； if ★ cond then x ≔ F (★ x) e else nop)
       (λ cond e → if true then x ≔ F (★ x) e else nop)
       (≔-subst {f = λ ★cond → if ★cond then _ else _})
     ⟩
     (
     x ≔ z ；
-    fold' (λ e →
+    iter (λ e →
       decl Bool λ cond →
       if true then
         x ≔ F (★ x) e
@@ -387,14 +388,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Ref Bool ∷ Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； fold' (λ e → decl Bool λ cond → S cond e) s)
+      (λ S → x ≔ z ； iter (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → if true then x ≔ F (★ x) e else _)
       (λ cond e → x ≔ F (★ x) e)
       β-if-true
     ⟩
     (
     x ≔ z ；
-    fold' (λ e →
+    iter (λ e →
       decl Bool λ cond →
       x ≔ F (★ x) e) s
     )
@@ -402,14 +403,14 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
       ≅ₚ-cong
       {v = Expr α ∷ []}
       {w = []}
-      (λ S → x ≔ z ； fold' S s)
+      (λ S → x ≔ z ； iter S s)
       (λ e → decl Bool λ cond → x ≔ F (★ x) e)
       (λ e → x ≔ F (★ x) e)
       decl-elim
     ⟩
     (
     x ≔ z ；
-    fold' (λ a → x ≔ F (★ x) a) s
+    iter (λ a → x ≔ F (★ x) a) s
     )
     ≡⟨⟩ -- by definition of fold
     fold F z s x
@@ -467,3 +468,29 @@ map-flatmap : ∀ { α β γ }
 filter-flatmap : ∀ { α β }
   → ∀ { s : Stream α } → ∀ { f : Expr β → Expr Bool } → ∀ { g : Expr α → Stream β }
   → filter f (flatmap g s) ≅ flatmap ((filter f) ∘ g) s
+
+-- _ : ∀ { α ζ } { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ }
+--   → (fold f z nil ≅ₚ (λ r → r ≔ z))
+--     × (∀ s → ¬ (s ≅ nil) → fold f z s ≅ₚ
+--          (λ r → r ← fold f z {!tail s!} ； r ≔ f  (★ r) {!head s!}))
+
+fold-map : ∀ { α ζ β }
+  { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { g : Expr β → Expr α } { s : Stream β }
+  → fold f z (map g s) ≅ₚ fold (λ x y → f x (g y)) z s
+
+fold-filter : ∀ { α ζ }
+  { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { g : Expr α → Expr Bool } { s : Stream α }
+  → fold f z (filter g s) ≅ₚ fold (λ x y → g y ⁇ f x y ∷ x) z s
+
+fold-flatmap : ∀ { α ζ β }
+  { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { g : Expr β → Stream α } { s : Stream β }
+  → fold f z (flatmap g s) ≅ₚ {!!}
+
+fold-unfold : ∀ { α ζ ξ }
+  { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ }
+  { g : (Expr ξ → (Expr Bool × Expr α × Expr ξ)) } { x : Expr ξ }
+  → fold f z (unfold g x) ≅ₚ {!!}
+
+-- fold-take : ∀ { α ζ }
+--   { f : α → Statement } { z : Expr ζ } { n : Expr Int } { s : SStream α }
+--   → iter f (take n s) ≅ₚ iter (λ { (x , m) y → {!with m < n | true = (f x y , m + 1) | false = (y , m + 1)!} }) s
