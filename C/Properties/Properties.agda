@@ -16,6 +16,7 @@ open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 open import Relation.Binary.Construct.Closure.Transitive
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
+open import Function.Nary.NonDependent
 
 import Level
 
@@ -116,39 +117,31 @@ cong₃ f refl refl refl = refl
 
 -- PROGRAM EQUIVALENCE
 
-Clos : ∀ { n } → (Vec Set n) → Set → Set
-Clos [] B = B
-Clos (h ∷ t) B = h → Clos t B
-
-lift : ∀ { n } { v : Vec Set n } { A : Set } { B : Set }
-  → Clos v (A → B) → A → Clos v B
-lift {v = []} clos = clos
-lift {v = h ∷ t} clos a x = lift (clos x) a
-
-Closure : ∀ { n } → (Vec Set n) → Set
-Closure v = Clos v Statement
+L0 : ∀ { n } → Levels n
+L0 {0} = _
+L0 {ℕ.suc n} = Level.zero , L0
 
 infix 0 _≅ₚ_
-_≅ₚ_ : ∀ { n } { v : Vec Set n } → Rel (Closure v) Level.zero
-_≅ₚ_ {v = []} x y = ∀ { k E } → 𝒮 x k E  ≅ₛ 𝒮 y k E
-_≅ₚ_ {v = h ∷ t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
+_≅ₚ_ : ∀ { n } { v : Sets n L0 } → Rel (v ⇉ Statement) Level.zero
+_≅ₚ_ {0} {lift} x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
+_≅ₚ_ {ℕ.suc n} {h , t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
-≅ₚ-refl : ∀ { n } { v : Vec Set n } → Reflexive (_≅ₚ_ {v = v})
-≅ₚ-refl {v = []} {x} {k} {E} = IsEquivalence.refl ≅ₛ-equiv
-≅ₚ-refl {v = x ∷ v} = ≅ₚ-refl {v = v}
+≅ₚ-refl : ∀ { n } { v : Sets n L0 } → Reflexive (_≅ₚ_ {v = v})
+≅ₚ-refl {0} {lift} {x} {k} {E} = IsEquivalence.refl ≅ₛ-equiv
+≅ₚ-refl {ℕ.suc n} {x , v} = ≅ₚ-refl {v = v}
 
-≅ₚ-sym : ∀ { n } { v : Vec Set n } → Symmetric (_≅ₚ_ {v = v})
-≅ₚ-sym {v = []} i~j = IsEquivalence.sym ≅ₛ-equiv i~j
-≅ₚ-sym {v = x ∷ v} i~j = ≅ₚ-sym {v = v} i~j
+≅ₚ-sym : ∀ { n } { v : Sets n L0 } → Symmetric (_≅ₚ_ {v = v})
+≅ₚ-sym {0} {lift} i~j = IsEquivalence.sym ≅ₛ-equiv i~j
+≅ₚ-sym {ℕ.suc n} {x , v} i~j = ≅ₚ-sym {v = v} i~j
 
-≅ₚ-trans : ∀ { n } { v : Vec Set n } → Transitive (_≅ₚ_ {v = v})
-≅ₚ-trans {v = []} i~j j~k = IsEquivalence.trans ≅ₛ-equiv i~j j~k
-≅ₚ-trans {v = x ∷ v} i~j j~k = ≅ₚ-trans {v = v} i~j j~k
+≅ₚ-trans : ∀ { n } { v : Sets n L0 } → Transitive (_≅ₚ_ {v = v})
+≅ₚ-trans {0} {lift} i~j j~k = IsEquivalence.trans ≅ₛ-equiv i~j j~k
+≅ₚ-trans {ℕ.suc n} {x , v} i~j j~k = ≅ₚ-trans {v = v} i~j j~k
 
-≅ₚ-equiv : ∀ { n } { v : Vec Set n } → IsEquivalence (_≅ₚ_ {v = v})
+≅ₚ-equiv : ∀ { n } { v : Sets n L0 } → IsEquivalence (_≅ₚ_ {v = v})
 ≅ₚ-equiv = record { refl = ≅ₚ-refl ; sym = ≅ₚ-sym ; trans = ≅ₚ-trans }
 
-postulate ≅ₚ-cong : ∀ { n m } { v : Vec Set n } { w : Vec Set m } (f : Closure v → Closure w) (x y : Closure v) → x ≅ₚ y → f x ≅ₚ f y
+postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → Statement) (x y : v ⇉ Statement) → x ≅ₚ y → f x ≅ₚ f y
 -- ≅ₚ-cong {v = []} {[]} f x y x≅y {k} {E} =
 --   ≅ₛ-cong (λ { (𝒮 s k E) → 𝒮 (f s) k E }) (𝒮 x k E) (𝒮 y k E) x≅y
 -- ≅ₚ-cong {v = α ∷ αs} {[]} f x y x≅y {k} {E} =
