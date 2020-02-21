@@ -67,6 +67,10 @@ record Semantics : Set₁ where
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → E ⊢ x || y ⇒ val (x' 𝔹.∨ y')
     &&-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ val x' → E ⊢ y ⇒ val y' → E ⊢ x && y ⇒ val (x' 𝔹.∧ y')
+    ⁇-eval-t : ∀ { E c α } { x y : Expr α } { x' }
+      → E ⊢ c ⇒ val 𝔹.true → E ⊢ x ⇒ val x' → E ⊢ c ⁇ x ∷ y ⇒ val x'
+    ⁇-eval-f : ∀ { E c α } { x y : Expr α } { y' }
+      → E ⊢ c ⇒ val 𝔹.false → E ⊢ y ⇒ val y' → E ⊢ c ⁇ x ∷ y ⇒ val y'
 
     _↝_ : Rel State 0ℓ
     ↝-if-true : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement }

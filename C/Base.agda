@@ -36,6 +36,7 @@ record C : Set₁ where
     true false : Expr Bool
     _||_ _&&_ : Expr Bool → Expr Bool → Expr Bool
     !_ : Expr Bool → Expr Bool
+    _⁇_∷_ : ∀ { α } → Expr Bool → Expr α → Expr α → Expr α
     if_then_else_ : Expr Bool → Statement → Statement → Statement
     _[_] : ∀ { α n } → Ref (Array α n) → (i : Expr Int) → Ref α
     ★_ : ∀ { α } → Ref α → Expr α
@@ -52,6 +53,7 @@ record C : Set₁ where
   infixr 0 _；_
   infix 1 if_then_else_
   infix 2 _≔_
+  infix 3 _⁇_∷_
   infix 4 _/_
   infix 5 _*_
   infix 6 _+_
