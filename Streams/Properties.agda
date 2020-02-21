@@ -2,8 +2,10 @@ open import C
 open import C.Properties.Properties
 open import C.Properties.ReductionSemantics
 
-open import Data.Product using (_×_ ; _,_)
 open import Data.Integer as ℤ using (ℤ)
+open import Data.Nat as ℕ using (ℕ)
+open import Data.Nat.Properties
+open import Data.Product using (_×_ ; _,_)
 open import Data.Unit
 open import Data.Vec using (Vec ; _∷_ ; [])
 open import Function
@@ -20,30 +22,61 @@ open C.C ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
 
 infix 0 _≅_
-_≅_ : ∀ { α } → Rel (Stream α) 0ℓ
-_≅_ {α} s t = ∀ { β } → (f : Expr β → Expr α → Expr β) → ∀ { z x }
+_≅_ : ∀ { α } → Rel (SStream α) 0ℓ
+_≅_ {α} s t = ∀ { β } → (f : Expr β → α → Expr β) → ∀ { z x }
   → fold f z s x ≅ₚ fold f z t x
 
 ≅-equiv : ∀ { α } → IsEquivalence (_≅_ {α})
 ≅-equiv {α} = record {
   refl = λ {s} f {z} {x} {k} {E} → IsEquivalence.refl ≅ₚ-equiv {fold f z s x} {k} {E} ;
-  trans = λ A B f → IsEquivalence.trans (≅ₚ-equiv {v = []}) (A f) (B f) ;
-  sym = λ A f → IsEquivalence.sym (≅ₚ-equiv {v = []}) (A f) }
+  trans = λ A B f → IsEquivalence.trans (≅ₚ-equiv {0}) (A f) (B f) ;
+  sym = λ A f → IsEquivalence.sym (≅ₚ-equiv {0}) (A f) }
 
-≅ₚ-setoid : ∀ { n } { v : Vec Set n } → Setoid _ _
+≅ₚ-setoid : ∀ { n } { v : Sets n L0 } → Setoid _ _
 ≅ₚ-setoid {v = v} = record {
-  Carrier = Closure v ;
+  Carrier = v ⇉ Statement ;
   _≈_ = _≅ₚ_ ;
   isEquivalence = ≅ₚ-equiv }
 
 import Relation.Binary.Reasoning.Setoid as Reasoning
-open module ≅-Reasoning = Reasoning (≅ₚ-setoid {v = []})
+open module ≅-Reasoning = Reasoning (≅ₚ-setoid {0})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_) public
 
-postulate ≅-cong : ∀ { α } { A : Set } (f : (A → Stream α) → Stream α) (x y : A → Stream α) → (∀ i → x i ≅ y i) → f x ≅ f y
+postulate ≅-cong : ∀ { α } { A : Set } (f : (A → SStream α) → SStream α) (x y : A → SStream α) → (∀ i → x i ≅ y i) → f x ≅ f y
 
-map-map : ∀ { α β γ }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Expr β }
+-- Both maps are equivalent, map is just a more efficient specialisation
+map'≅map : ∀ { α β } { f : α → Expr β } { s : SStream α } → map' f s ≅ map f s
+map'≅map {α} {β} {f} {s} F {z} {x} =
+  begin
+    fold F z (map' f s) x
+    ≡⟨⟩
+    fold F z (mapRaw (λ a k → k (f a)) s) x
+    ≅˘⟨ 
+      ≅ₚ-cong
+        {2}
+        {α , (Expr β → Statement) , _}
+        (λ body → fold F z (mapRaw (λ a k → body a k) s) x)
+        (λ a k → decl β λ t → k (f a))
+        (λ a k → k (f a))
+        decl-elim ⟩
+    fold F z (mapRaw (λ a k → decl β λ t → k (f a)) s) x
+    ≅˘⟨
+      ≅ₚ-cong
+        {3}
+        {α , (Expr β → Statement) , Ref β , _}
+        (λ body → fold F z (mapRaw (λ a k → decl β λ t → body a k t) s) x)
+        (λ a k t → t ≔ f a ； k (★ t))
+        (λ a k t → k (f a))
+        (λ {a} {k} {t} → ≔-subst {f = λ e → k e})
+    ⟩
+    fold F z (mapRaw (λ a k → decl β λ t → t ≔ f a ； k (★ t)) s) x
+    ≡⟨⟩
+    fold F z (map f s) x
+  ∎
+
+-- TODO: generalise map properties and use map'≅map to conclude this specialisations
+
+map-map : ∀ { α β γ } { s : SStream α } { f : Expr β → Expr γ } { g : α → Expr β }
   → map f (map g s) ≅ map (f ∘ g) s
 map-map {α} {β} {γ} {s@(linear (producer (init , for (bound , index))))} {f} {g} F {z} {x} =
   let wrap : ∀ {τ} → (_ → Expr Int → (Expr τ → Statement) → Statement) → Stream τ
@@ -87,8 +120,8 @@ map-map {α} {β} {γ} {s@(linear (producer (init , for (bound , index))))} {f} 
     ) x
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr γ → Statement) ∷ Expr α ∷ Ref β ∷ []}
-      {w = []}
+      {3}
+      {(Expr γ → Statement) , α , Ref β , _}
       (λ c → fold F z (wrap λ s i k → index s i (λ e → decl β λ t₁ → c k e t₁)) x)
       (λ k e t₁ → t₁ ≔ g e ； decl γ λ t₂ → t₂ ≔ f (★ t₁) ； k (★ t₂))
       (λ k e t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
@@ -104,8 +137,8 @@ map-map {α} {β} {γ} {s@(linear (producer (init , for (bound , index))))} {f} 
     ) x
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr γ → Statement) ∷ Expr α ∷ []}
-      {w = []}
+      {2}
+      {(Expr γ → Statement) , α , _}
       (λ c → fold F z (wrap (λ s i k → index s i (λ e → c k e))) x)
       (λ k e → decl β λ t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
       (λ k e → decl γ λ t → t ≔ f (g e) ； k (★ t))
@@ -162,8 +195,8 @@ map-map {α} {β} {γ} {s@(linear (producer (init , unfolder (term , card , step
     ) x
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr γ → Statement) ∷ Expr α ∷ Ref β ∷ []}
-      {w = []}
+      {3}
+      {(Expr γ → Statement) , α , Ref β , _}
       (λ c → fold F z (wrap λ s k → step s (λ e → decl β λ t₁ → c k e t₁)) x)
       (λ k e t₁ → t₁ ≔ g e ； decl γ λ t₂ → t₂ ≔ f (★ t₁) ； k (★ t₂))
       (λ k e t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
@@ -179,12 +212,12 @@ map-map {α} {β} {γ} {s@(linear (producer (init , unfolder (term , card , step
     ) x
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr γ → Statement) ∷ Expr α ∷ []}
-      {w = []}
+      {2}
+      {(Expr γ → Statement) , α , _}
       (λ c → fold F z (wrap (λ s k → step s (λ e → c k e))) x)
       (λ k e → decl β λ t₁ → decl γ λ t₂ → t₂ ≔ f (g e) ； k (★ t₂))
       (λ k e → decl γ λ t → t ≔ f (g e) ； k (★ t))
-      decl-elim
+      (decl-elim)
     ⟩
     fold F z (
       wrap λ s k →
@@ -216,7 +249,7 @@ map-map {α} {β} {γ} {s@(nested (p , gen))} {f} {g} F {z} {x} =
     fold F z (map (f ∘ g) s) x
   ∎
 
-map-id : ∀ { α } → ∀ { s : Stream α } → map id s ≅ s
+map-id : ∀ { α } { s : Stream α } → map id s ≅ s
 map-id {α} {s@(linear (producer (init , for (bound , index))))} F {z} {x} =
   let wrap : (_ → Expr Int → (Expr α → Statement) → Statement) → Statement
       wrap index = fold F z (linear (producer (init , for (bound , index)))) x
@@ -230,22 +263,22 @@ map-id {α} {s@(linear (producer (init , for (bound , index))))} F {z} {x} =
     wrap (index' (λ k e → decl α λ t → t ≔ e ； k (★ t)))
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr α → Statement) ∷ Expr α ∷ Ref α ∷ []}
-      {w = []}
+      {3}
+      {(Expr α → Statement) , Expr α , Ref α , _}
       (λ s → wrap (index' (λ k e → decl α λ t → s k e t)))
       (λ k e t → t ≔ e ； k (★ t))
       (λ k e t → k e)
-      ≔-subst
+      (≔-subst)
     ⟩
     wrap (index' (λ k e → decl α λ t → k e))
     ≅⟨
       ≅ₚ-cong
-      {v = (Expr α → Statement) ∷ Expr α ∷ []}
-      {w = []}
+      {2}
+      {(Expr α → Statement) , Expr α , _}
       (λ s → wrap (index' (λ k e → s k e)))
       (λ k e → decl α λ t → k e)
       (λ k e → k e)
-      decl-elim
+      (decl-elim)
     ⟩
     wrap (index' (λ k e → k e))
     ≡⟨⟩
@@ -266,22 +299,22 @@ map-id {α} {s@(linear (producer (init , unfolder (term , card , step))))} F {z}
       wrap (step' (λ k e → decl α λ t → t ≔ e ； k (★ t)))
       ≅⟨ 
         ≅ₚ-cong
-        {v = (Expr α → Statement) ∷ Expr α ∷ Ref α ∷ []}
-        {w = []}
+        {3}
+        {(Expr α → Statement) , Expr α , Ref α , _}
         (λ s → wrap (step' (λ k e → decl α λ t → s k e t)))
         (λ k e t → t ≔ e ； k (★ t))
         (λ k e t → k e)
-        ≔-subst
+        (≔-subst)
       ⟩
       wrap (step' (λ k e → decl α λ t → k e))
       ≅⟨
         ≅ₚ-cong
-        {v = (Expr α → Statement) ∷ Expr α ∷ []}
-        {w = []}
+        {2}
+        {(Expr α → Statement) , Expr α , _}
         (λ s → wrap (step' (λ k e → s k e)))
         (λ k e → decl α λ t → k e)
         (λ k e → k e)
-        decl-elim
+        (decl-elim)
       ⟩
       wrap (step' (λ k e → k e))
       ≡⟨⟩
@@ -307,12 +340,11 @@ map-id {α} {s@(nested (p , f))} F {z} {x} =
     fold F z s x
   ∎
 
-filter-filter : ∀ { α }
-  → ∀ { s : Stream α } → ∀ { f : Expr α → Expr Bool } → ∀ { g : Expr α → Expr Bool }
+filter-filter : ∀ { α } { s : SStream α } { f : α → Expr Bool } { g : α → Expr Bool }
   → filter f (filter g s) ≅ filter (λ x → f x && g x) s
 filter-filter = {!!}
 
-filter-true : ∀ { α } → ∀ { s : Stream α } → filter (λ x → true) s ≅ s
+filter-true : ∀ { α } { s : SStream α } → filter (λ x → true) s ≅ s
 filter-true {α} {s@(linear prod)} F {z} {x} =
   begin
     fold F z (filter (λ _ → true) s) x
@@ -368,8 +400,8 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     )
     ≅⟨
       ≅ₚ-cong
-      {v = Ref Bool ∷ Expr α ∷ []}
-      {w = []}
+      {2}
+      {Ref Bool , α , _}
       (λ S → x ≔ z ； iter (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → cond ≔ true ； if ★ cond then x ≔ F (★ x) e else nop)
       (λ cond e → if true then x ≔ F (★ x) e else nop)
@@ -386,12 +418,12 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     )
     ≅⟨
       ≅ₚ-cong
-      {v = Ref Bool ∷ Expr α ∷ []}
-      {w = []}
+      {2}
+      {Ref Bool , α , _}
       (λ S → x ≔ z ； iter (λ e → decl Bool λ cond → S cond e) s)
       (λ cond e → if true then x ≔ F (★ x) e else _)
       (λ cond e → x ≔ F (★ x) e)
-      β-if-true
+      (β-if-true)
     ⟩
     (
     x ≔ z ；
@@ -401,12 +433,12 @@ filter-true {α} {s@(linear prod)} F {z} {x} =
     )
     ≅⟨
       ≅ₚ-cong
-      {v = Expr α ∷ []}
-      {w = []}
+      {1}
+      {α , _}
       (λ S → x ≔ z ； iter S s)
       (λ e → decl Bool λ cond → x ≔ F (★ x) e)
       (λ e → x ≔ F (★ x) e)
-      decl-elim
+      (decl-elim)
     ⟩
     (
     x ≔ z ；
@@ -436,37 +468,31 @@ filter-true {α} {s@(nested (prod , f))} F {z} {x} =
     fold F z s x
   ∎
 
-filter-false : ∀ { α } → ∀ { s : Stream α }
-  → filter (λ x → false) s ≅ nil
+filter-false : ∀ { α } { s : SStream α } → filter (λ x → false) s ≅ nil
 filter-false = {!!}
 
-filter-map : ∀ { α β }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Expr Bool } → ∀ { g : Expr α → Expr β }
+filter-map : ∀ { α β } { s : SStream α } { f : Expr β → Expr Bool } { g : α → Expr β }
   → filter f (map g s) ≅ map g (filter (f ∘ g) s)
 filter-map = {!!}
 
 -- TODO: zipWith
 
-flatmap-assoc : ∀ { α β }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Stream α } → ∀ { g : Expr α → Stream β }
+flatmap-assoc : ∀ { α β γ } { s : SStream α } { f : β → SStream γ } { g : α → SStream β }
   → flatmap (λ x → flatmap f (g x)) s ≅ flatmap f (flatmap g s)
 flatmap-assoc = {!!}
 
-flatmap-map : ∀ { α β γ }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Stream γ } → ∀ { g : Expr α → Expr β }
+flatmap-map : ∀ { α β γ } { s : SStream α } { f : Expr β → SStream γ } { g : α → Expr β }
   → flatmap f (map g s) ≅ flatmap (f ∘ g) s
 flatmap-map = {!!}
 
-map-flatmap : ∀ { α β γ }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Expr γ } → ∀ { g : Expr α → Stream β }
+map-flatmap : ∀ { α β γ } { s : SStream α } { f : β → Expr γ } { g : α → SStream β }
   → map f (flatmap g s) ≅ flatmap ((map f) ∘ g) s
 
 --flatmap-filter : ∀ { α β }
 --  → ∀ { s : Stream α } → ∀ { f : Code α → Stream β } → ∀ { g : Code α → Code Bool }
 --  → flatmap f (filter g s) ≅ flatmap (λ x → if g x then f x else nil) s
 
-filter-flatmap : ∀ { α β }
-  → ∀ { s : Stream α } → ∀ { f : Expr β → Expr Bool } → ∀ { g : Expr α → Stream β }
+filter-flatmap : ∀ { α β } { s : SStream α } { f : β → Expr Bool } { g : α → SStream β }
   → filter f (flatmap g s) ≅ flatmap ((filter f) ∘ g) s
 
 -- _ : ∀ { α ζ } { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ }
@@ -483,7 +509,7 @@ fold-filter : ∀ { α ζ }
   → fold f z (filter g s) ≅ₚ fold (λ x y → g y ⁇ f x y ∷ x) z s
 
 fold-flatmap : ∀ { α ζ β }
-  { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { g : Expr β → Stream α } { s : Stream β }
+  { f : Expr ζ → α → Expr ζ } { z : Expr ζ } { g : β → SStream α } { s : SStream β }
   → fold f z (flatmap g s) ≅ₚ {!!}
 
 fold-unfold : ∀ { α ζ ξ }
@@ -492,5 +518,271 @@ fold-unfold : ∀ { α ζ ξ }
   → fold f z (unfold g x) ≅ₚ {!!}
 
 -- fold-take : ∀ { α ζ }
---   { f : α → Statement } { z : Expr ζ } { n : Expr Int } { s : SStream α }
---   → iter f (take n s) ≅ₚ iter (λ { (x , m) y → {!with m < n | true = (f x y , m + 1) | false = (y , m + 1)!} }) s
+--   { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { n : Expr Int } { s : Stream α }
+--   → fold f z (take n s) ≅ₚ fold {!λ { (x , m) y → {!with m < n | true = (f x y , m + 1) | false = (y , m + 1)!} }!} z s
+
+module Monad where
+
+  -- Cannot use RawMonad because Set f -> Set f
+  module StreamMonad where
+
+    ReturnBindLeftId :
+      (∀ { A } → A → SStream A) -- return
+      → (∀ { A B } → SStream A → (A → SStream B) → SStream B) -- bind
+      → Set₁
+    ReturnBindLeftId return _>>=_ =
+      ∀ { A B } { a : Expr A } { f : Expr A → Stream B }
+      → (return a >>= λ x → f x) ≅ f a
+    ReturnBindRightId : 
+      (∀ { A } → A → SStream A) -- return
+      → (∀ { A B } → SStream A → (A → SStream B) → SStream B) -- bind
+      → Set₁
+    ReturnBindRightId return _>>=_ =
+      ∀ { A } { ma : SStream A }
+      → (ma >>= λ x → return x) ≅ ma
+    BindAssoc : 
+      (∀ { A B } → SStream A → (A → SStream B) → SStream B) -- bind
+      → Set₁
+    BindAssoc _>>=_ =
+      ∀ { A B C } { ma : SStream A } { f : A → SStream B } { g : B → SStream C }
+      → (ma >>= λ x → (f x >>= λ y → g y)) ≅ ((ma >>= λ x → f x) >>= λ y → g y)
+
+  -- return₁ x gives a singleton stream of x, much like monad intepretation of lists
+  return₁ : ∀ { A } → A → SStream A
+  return₁ x = linear (producer ((λ k → k x) , (unfolder ((λ a r → r ≔ true) , atMost1 , (λ a k → k a)))))
+
+  -- return₂ x give an infinite stream of x
+  return₂ : ∀ { A } → A → SStream A
+  return₂ x = linear (producer ((λ k → k x) , unfolder ((λ _ r → r ≔ true) , many , (λ a k → k a))))
+  
+  -- could give two id elements for bind
+
+  infix 4 _>>=_
+  _>>=_ : ∀ { A B } → SStream A → (A → SStream B) → SStream B
+  s >>= f = flatmap f s
+  
+  return-bind-left-id₁ : StreamMonad.ReturnBindLeftId return₁ _>>=_
+  return-bind-left-id₁ {a = a} {f} F {z} {x} =
+    begin
+      fold F z (return₁ a >>= λ x → f x) x
+      ≡⟨⟩
+      fold F z (return₁ a >>= f) x
+      ≡⟨⟩
+      fold F z
+        (flatmap f (
+          linear (
+            producer (
+              (λ k → k a) ,
+              (unfolder (
+                (λ a r → r ≔ true) ,
+                atMost1 ,
+                λ a k → k a)))))) x
+      ≡⟨⟩
+      fold F z
+        (nested (
+          producer (
+            (λ k → k a) ,
+            (unfolder (
+              (λ _ r → r ≔ true) ,
+              atMost1 ,
+              (λ a k → k a)))) ,
+          f)) x
+      ≡⟨⟩
+      (x ≔ z ；
+      iter
+        (λ e → iter (λ a → x ≔ F (★ x) a) (f e))
+        (linear (
+          producer (
+            (λ k → k a) ,
+            (unfolder (
+              (λ a r → r ≔ true) ,
+              atMost1 ,
+              λ a k → k a))))))
+      ≡⟨⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      cond ≔ true ；
+      if ★ cond then
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      else
+        nop)
+      ≅⟨ {!≔-subst!} ⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      if true then
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      else
+        nop)
+      ≅⟨ {!if-true!} ⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      iter (λ a → x ≔ F (★ x) a) (f a))
+      ≅⟨ {!decl-elim!} ⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) (f a))
+      ≡⟨⟩
+      fold F z (f a) x
+    ∎
+
+  return-bind-left-id₂ : StreamMonad.ReturnBindLeftId return₂ _>>=_
+  return-bind-left-id₂ {a = a} {f} F {z} {x} =
+    begin
+      fold F z (return₂ a >>= λ x → f x) x
+      ≡⟨⟩
+      fold F z (return₂ a >>= f) x
+      ≡⟨⟩
+      fold F z
+        (flatmap f (
+          linear (
+            producer (
+              (λ k → k a) ,
+              (unfolder (
+                (λ _ r → r ≔ true) ,
+                many ,
+                λ a k → k a)))))) x
+      ≡⟨⟩
+      fold F z
+        (nested (
+          producer (
+            (λ k → k a) ,
+            (unfolder (
+              (λ _ r → r ≔ true) ,
+              many ,
+              (λ a k → k a)))) ,
+          f)) x
+      ≡⟨⟩
+      (x ≔ z ；
+      iter
+        (λ e → iter (λ a → x ≔ F (★ x) a) (f e))
+        (linear (
+          producer (
+            (λ k → k a) ,
+            (unfolder (
+              (λ a r → r ≔ true) ,
+              many ,
+              λ a k → k a))))))
+      ≡⟨⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      cond ≔ true ；
+      while ★ cond then (
+         iter (λ a → x ≔ F (★ x) a) (f a) ；
+         cond ≔ true
+      ))
+      ≅⟨ {!!} ⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      cond ≔ true ；
+      while ★ cond then (
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      ))
+      ≅⟨ {!≔-subst!} ⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      while true then 
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      )
+      ≅⟨ {!!} ⟩
+      (x ≔ z ；
+      decl Bool λ cond →
+      while true then 
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      )
+      ≅⟨ {!decl-elim!} ⟩
+      (x ≔ z ；
+      while true then 
+         iter (λ a → x ≔ F (★ x) a) (f a)
+      )
+      ≅⟨ {!!} ⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) (f a))
+      ≡⟨⟩
+      fold F z (f a) x
+    ∎
+
+  return-bind-right-id₁ : StreamMonad.ReturnBindRightId return₁ _>>=_
+  return-bind-right-id₁ {ma = ma@(linear p)} F {z} {x} =
+    begin
+      fold F z (ma >>= λ x → return₁ x) x
+      ≡⟨⟩
+      fold F z (flatmap return₁ ma) x
+      ≡⟨⟩
+      fold F z (nested (p , return₁)) x
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) (nested (p , return₁)))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ e → iter (λ a → x ≔ F (★ x) a) (return₁ e)) (linear p))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter
+        (λ e →
+          decl Bool λ cond →
+          cond ≔ true ；
+          if ★ cond then
+            x ≔ F (★ x) e
+          else nop)
+        (linear p))
+      ≅⟨ {!≔-subst!} ⟩
+      (x ≔ z ；
+      iter
+        (λ e →
+          decl Bool λ cond →
+          if true then
+            x ≔ F (★ x) e
+          else nop)
+        (linear p))
+      ≅⟨ {!decl-elim!} ⟩
+      (x ≔ z ；
+      iter
+        (λ e →
+          if true then
+            x ≔ F (★ x) e
+          else nop)
+        (linear p))
+      ≅⟨ {!if-true!} ⟩
+      (x ≔ z ；
+      iter
+        (λ e → x ≔ F (★ x) e)
+        (linear p))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) ma)
+      ≡⟨⟩
+      fold F z ma x
+    ∎
+  return-bind-right-id₁ {ma = ma@(nested (p , f))} F {z} {x} =
+    begin
+      fold F z (ma >>= λ x → return₁ x) x
+      ≡⟨⟩
+      fold F z (flatmap return₁ ma) x
+      ≡⟨⟩
+      fold F z (nested (p , λ a → flatmap return₁ (f a))) x
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) (nested (p , λ a → flatmap return₁ (f a))))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ e → iter (λ a → x ≔ F (★ x) a) (flatmap return₁ (f e))) (linear p))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ e → iter (λ a → x ≔ F (★ x) a) ((f e) >>= λ x → return₁ x)) (linear p))
+      ≅⟨ {!return-bind-right-id₁!} ⟩
+      (x ≔ z ；
+      iter (λ e → iter (λ a → x ≔ F (★ x) a) (f e)) (linear p))
+      ≅⟨ {!!} ⟩
+      (x ≔ z ；
+      iter
+        (λ e → x ≔ F (★ x) e)
+        (nested (p , f)))
+      ≡⟨⟩
+      (x ≔ z ；
+      iter (λ a → x ≔ F (★ x) a) ma)
+      ≡⟨⟩
+      fold F z ma x
+    ∎
+  
+
+  bind-assoc : StreamMonad.BindAssoc _>>=_
+  bind-assoc {ma = ma} {f} {g} = flatmap-assoc {s = ma} {f = g} {g = f}

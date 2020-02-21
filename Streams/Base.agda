@@ -104,7 +104,7 @@ ofArr { α } { n } vec =
   in
     linear (producer (init , for (upb , index)))
 
--- unfold ≡ Functor.fmap
+-- unfold ≡ λ f z → Functor.fmap f (Applicative.pure z)
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }
   → (Expr ζ → (Expr Bool × Expr α × Expr ζ)) → Expr ζ → Stream α
 unfold { α } { ζ } f x =
@@ -154,32 +154,6 @@ iterRaw consumer (nested (prod , f)) {1} =
 iter : ∀ ⦃ _ : C ⦄ { α } → (α → Statement) → SStream α → Statement
 iter f s = iterRaw f s {∥ s ∥ₛ} {refl}
 
--- infixr 4 _#_
--- infixr 4 _#*_
--- data Exprs ⦃ _ : C ⦄ : { n : ℕ } → Vec c_type (ℕ.suc n) → Set where
---   _# : ∀ { α } → Expr α → Exprs (α ∷ [])
---   _#_ : ∀ { α } { n } { v : Vec c_type (ℕ.suc n) } → Expr α → Exprs v → Exprs (α ∷ v)
-
--- data Refs ⦃ _ : C ⦄ : { n : ℕ } → Vec c_type (ℕ.suc n) → Set where
---   _#* : ∀ { α } → Ref α → Refs (α ∷ [])
---   _#*_ : ∀ { α } { n } { v : Vec c_type (ℕ.suc n) } → Ref α → Refs v → Refs (α ∷ v)
-
--- -- Bulk assignment
--- [_]_≔*_ : ∀ ⦃ _ : C ⦄ { n } (v : Vec c_type (ℕ.suc n)) → Refs v → Exprs v → Statement
--- [_]_≔*_ {0} (_ ∷ []) (r #*) (e #) = r ≔ e
--- [_]_≔*_ {ℕ.suc _} (_ ∷ t) (r #* rs) (e # es) = r ≔ e ； [ t ] rs ≔* es
-
--- -- Bulk deref
--- [_]★_ : ∀ ⦃ _ : C ⦄ { n } (v : Vec c_type (ℕ.suc n)) → Refs v → Exprs v
--- [_]★_ {0} (_ ∷ []) (r #*) = (★ r) #
--- [_]★_ {ℕ.suc _} (_ ∷ t) (r #* rs) = (★ r) # ([ t ]★ rs)
-
--- fold : ∀ ⦃ _ : C ⦄ { α n } { ζ : Vec c_type (ℕ.suc n) } → (Exprs ζ → α → Exprs ζ) → Exprs ζ → SStream α → Refs ζ → Statement
--- fold {ζ = ζ} f z s r =
---   [ ζ ] r ≔* z ；
---   iter (λ a → [ ζ ] r ≔* f ([ ζ ]★ r) a ) s
-
--- fold ≡ 
 fold : ∀ ⦃ _ : C ⦄ { α ζ } → (Expr ζ → α → Expr ζ) → Expr ζ → SStream α → (Ref ζ → Statement)
 fold f z s acc =
   acc ≔ z ；
@@ -195,7 +169,8 @@ mapRaw tr (linear (producer (init , unfolder (term , card , step)))) =
     linear (producer (init , unfolder (term , card , step')))
 mapRaw tr (nested (p , f)) = nested (p , (λ a → mapRaw tr (f a)))
 
-map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (Expr α → Expr β) → Stream α → Stream β
+-- map ≡ Functor.fmap
+map : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → Expr β) → SStream α → Stream β
 map { β = β } f =
   mapRaw (λ a k →
     decl β λ t →
@@ -203,12 +178,17 @@ map { β = β } f =
     k (★ t)
   )
 
+-- Inefficient, but more general and ≅-equivalent
+map' : ∀ ⦃ _ : C ⦄ { α β } → (α → β) → SStream α → SStream β
+map' f = mapRaw (λ a k → k (f a))
+
+-- flatmap ≡ λ f x → x Monad.>>= f
 flatmap : ∀ ⦃ _ : C ⦄ → ∀ { α β } → (α → SStream β) → SStream α → SStream β
 flatmap {α = α} f (linear x) = nested (x , f) -- TODO: can we eliminate this case when α is Bool or other prim type
 flatmap f (nested (x , g)) = nested (x , λ a → flatmap f (g a))
 
-filter : ∀ ⦃ _ : C ⦄ → ∀ { α : c_type } → (Expr α → Expr Bool) → Stream α → Stream α
-filter { α = α } f = flatmap (
+filter : ∀ ⦃ _ : C ⦄ { α } → (α → Expr Bool) → SStream α → SStream α
+filter f = flatmap (
   λ x → linear (producer ((λ k → k x) , unfolder ((λ a r → r ≔ f a) , atMost1 , λ a k → k a))))
 
 addToProducerRaw : ∀ ⦃ _ : C ⦄ { α } → (Ref Bool → Statement) → (p : Producer α)
@@ -363,7 +343,7 @@ zipWith : ∀ ⦃ _ : C ⦄ { α β γ } → (α → β → γ)
   → (x : SStream α) (y : SStream β) { _ : ∥ x ∥ₛ +ₙ ∥ y ∥ₛ ≤ₙ 1 } → SStream γ
 zipWith f a b {p} = mapRaw (λ { (x , y) k → k (f x y) }) (zip a b {p})
 
-nil : ∀ ⦃ _ : C ⦄ → ∀ { α } → Stream α
+nil : ∀ ⦃ _ : C ⦄ → ∀ { α } → SStream α
 nil = linear (producer { σ = ⊤ } ((λ x → x ⊤.tt) , for ((λ _ _ → nop) , λ _ _ _ → nop)))
 
 -- iota n
