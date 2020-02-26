@@ -5,6 +5,7 @@ open import Data.Integer as ℤ using (ℤ ; +_)
 open import Data.Product using (Σ ; ∃ ; _×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit using (⊤ ; tt)
 open import Data.Vec using (Vec ; [] ; _∷_)
+open import Data.List using (List)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -69,10 +70,9 @@ data Continuation : Set where
   stop : Continuation
   _then_ : Statement → Continuation → Continuation
 
-data SideEffects : Set where
-  [] : SideEffects
-  _∷_ : ℤ → SideEffects → SideEffects
+SideEffects : Set
+SideEffects = List ℤ
 
 data State : Set where
-  𝒮 : Statement → Continuation → Env → State
+  𝒮 : Statement → Continuation → Env → SideEffects → State
   -- TODO: Side effects

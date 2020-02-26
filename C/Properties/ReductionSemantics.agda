@@ -11,6 +11,7 @@ open import Data.Product using (Σ ; ∃ ; ∃-syntax ; _×_ ; _,_ ; proj₁ ; p
 open import Data.Sum
 open import Data.Unit
 open import Data.Vec using (Vec ; [] ; _∷_)
+open import Data.List using (List) renaming (_∷_ to _∷ₗ_)
 open import Function
 open import Level using (0ℓ)
 open import Relation.Binary
@@ -73,25 +74,27 @@ record Semantics : Set₁ where
       → E ⊢ c ⇒ val 𝔹.false → E ⊢ y ⇒ val y' → E ⊢ c ⁇ x ∷ y ⇒ val y'
 
     _↝_ : Rel State 0ℓ
-    ↝-if-true : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement }
-      → E ⊢ cond ⇒ val 𝔹.true → 𝒮 (if cond then s₁ else s₂) k E ↝ 𝒮 s₁ k E
-    ↝-if-false : ∀ { E k } { cond : Expr Bool } { s₁ s₂ : Statement }
-      → E ⊢ cond ⇒ val 𝔹.false → 𝒮 (if cond then s₁ else s₂) k E ↝ 𝒮 s₂ k E
-    ↝-assignment : ∀ { E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
-      → E ⊢ e ⇒ val v → 𝒮 (id ≔ e) k E ↝ 𝒮 nop k (id ↦ val v , E)
-    ↝-seq : ∀ { E k } { s₁ s₂ : Statement }
-      → 𝒮 (s₁ ； s₂) k E ↝ 𝒮 s₁ (s₂ then k) E
-    ↝-decl : ∀ { E k α } { f : Ref α → Statement }
-      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E ↝ 𝒮 (f x) k (x , E))
-    ↝-nop : ∀ { E k } { s : Statement } → 𝒮 nop (s then k) E ↝ 𝒮 s k E
-    ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
-      → 𝒮 (for l to u then f) k E
+    ↝-if-true : ∀ { E k e } { cond : Expr Bool } { s₁ s₂ : Statement }
+      → E ⊢ cond ⇒ val 𝔹.true → 𝒮 (if cond then s₁ else s₂) k E e ↝ 𝒮 s₁ k E e
+    ↝-if-false : ∀ { E k e } { cond : Expr Bool } { s₁ s₂ : Statement }
+      → E ⊢ cond ⇒ val 𝔹.false → 𝒮 (if cond then s₁ else s₂) k E e ↝ 𝒮 s₂ k E e
+    ↝-assignment : ∀ { E k α ef } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
+      → E ⊢ e ⇒ val v → 𝒮 (id ≔ e) k E ef ↝ 𝒮 nop k (id ↦ val v , E) ef
+    ↝-seq : ∀ { E k e } { s₁ s₂ : Statement }
+      → 𝒮 (s₁ ； s₂) k E e ↝ 𝒮 s₁ (s₂ then k) E e
+    ↝-decl : ∀ { E k e α } { f : Ref α → Statement }
+      → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E e ↝ 𝒮 (f x) k (x , E) e)
+    ↝-nop : ∀ { E k e } { s : Statement } → 𝒮 nop (s then k) E e ↝ 𝒮 s k E e
+    ↝-for : ∀ { E k e } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
+      → 𝒮 (for l to u then f) k E e
         ↝ 𝒮 (if (l < u) then (
                 (decl Int λ i → i ≔ l ； f i) ；
                 for (l + ⟨ + 1 ⟩) to u then f)
-             else nop) k E
-    ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement }
-      → 𝒮 (while e then s) k E ↝ 𝒮 (if e then (s ； while e then s) else nop) k E
+             else nop) k E e
+    ↝-while : ∀ { E k ef } { e : Expr Bool } { s : Statement }
+      → 𝒮 (while e then s) k E ef ↝ 𝒮 (if e then (s ； while e then s) else nop) k E ef
+    ↝-putchar : ∀ { E k ef } { e : Expr Int } { v : ℤ }
+      → E ⊢ e ⇒ val v → 𝒮 (putchar e) k E ef ↝ 𝒮 nop k E (v ∷ₗ ef)
     ↝-det : ∀ { S S₁ S₂ } → S ↝ S₁ → S ↝ S₂ → S₁ ≡ S₂
 
   infix 0 _≅ₑ_
@@ -118,10 +121,10 @@ record Semantics : Set₁ where
 
   field
     ≅ₛ-subst :
-      ∀ { α E₁ E₂ k } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
+      ∀ { α E₁ E₂ k ef } { v w : ⟦ α ⟧ } { f : Expr α → Statement } { e₁ e₂ : Expr α }
       → E₁ ⊢ e₁ ⇒ val v → E₂ ⊢ e₂ ⇒ val w → v ≡ w
-      → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
-    ≅ₛ-decl : ∀ { α f k E } → 𝒮 (decl α λ x → f) k E ≅ₛ 𝒮 f k E
+      → 𝒮 (f e₁) k E₁ ef ≅ₛ 𝒮 (f e₂) k E₂ ef
+    ≅ₛ-decl : ∀ { α f k E e } → 𝒮 (decl α λ x → f) k E e ≅ₛ 𝒮 f k E e
     ≅ₛ-cong : Congruence _≅ₛ_
 
 

@@ -46,6 +46,7 @@ record C : Set₁ where
     nop : Statement
     for_to_then_ : Expr Int → Expr Int → (Ref Int → Statement) → Statement
     while_then_ : Expr Bool → Statement → Statement
+    putchar : Expr Int → Statement
 
   _←_ : ∀ { α } → Ref α → (Ref α → Statement) → Statement
   x ← e = e x 

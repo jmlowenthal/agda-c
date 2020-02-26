@@ -123,7 +123,7 @@ L0 {ℕ.suc n} = Level.zero , L0
 
 infix 0 _≅ₚ_
 _≅ₚ_ : ∀ { n } { v : Sets n L0 } → Rel (v ⇉ Statement) Level.zero
-_≅ₚ_ {0} {lift} x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
+_≅ₚ_ {0} {lift} x y = ∀ { k E e } → 𝒮 x k E e ≅ₛ 𝒮 y k E e
 _≅ₚ_ {ℕ.suc n} {h , t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 
 ≅ₚ-refl : ∀ { n } { v : Sets n L0 } → Reflexive (_≅ₚ_ {v = v})
@@ -165,6 +165,8 @@ postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → S
 -- ≅ₚ-cong {v = v} {β ∷ βs} f x y x≅y {r} =
 --   ≅ₚ-cong {v = v} {βs} (λ c → f c r) _ _ x≅y
 
+postulate ；-assoc : Associative _≅ₚ_ _；_
+
 β-if-true : ∀ { x y : Statement }
   → (if true then x else y) ≅ₚ x
 β-if-true = ↝*⇒≅ₛ (↝-if-true true-eval ◅ ε)
@@ -197,3 +199,29 @@ postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → S
 
 decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
 decl-elim {α} {f} = ≅ₛ-decl
+
+nested-while-loop : ∀ { s t : Statement }
+  → s ≅ₚ t → while true then s ≅ₚ while true then (while true then t)
+nested-while-loop {s} {t} s≅t =
+  begin'
+    (while true then s)
+    ≅⟨ ≅ₚ-cong {0} (λ s → while true then s) s t s≅t ⟩
+    (while true then t)
+    ≅⟨ ↝*⇒≅ₛ (↝-while ◅ ε) ⟩
+    (if true then (t ； while true then t) else nop)
+    ≅⟨ β-if-true ⟩
+    (t ； while true then t)
+    ≅⟨ {!!} ⟩
+    ((t ； while true then t) ； while true then (while true then t))
+    ≅⟨ inj₁ (_ , ↝-seq ◅ ε , ↝-seq ◅ (↝-if-true true-eval) ◅ ε) ⟩
+    (if true then (t ； while true then t) else nop ； while true then (while true then t))
+    ≅⟨ inj₁ (_ , ↝-seq ◅ ε , ↝-seq ◅ ↝-while ◅ ε) ⟩
+    (while true then t ； while true then (while true then t))
+    ≅˘⟨ β-if-true ⟩
+    (if true then (while true then t ； while true then (while true then t)) else nop)
+    ≅˘⟨ ↝*⇒≅ₛ (↝-while ◅ ε) ⟩
+    (while true then (while true then t))
+  ∎'
+
+nested-while-loop' : ∀ { s t : Statement } { e : Expr Bool }
+  → s ≅ₚ t → while e then s ≅ₚ while e then (while e then t)
