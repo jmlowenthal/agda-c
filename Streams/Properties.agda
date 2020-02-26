@@ -20,6 +20,7 @@ module Streams.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 
 open C.C ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
+open ≅-Reasoning
 
 infix 0 _≅_
 _≅_ : ∀ { α } → Rel (SStream α) 0ℓ
@@ -31,16 +32,6 @@ _≅_ {α} s t = ∀ { β } → (f : Expr β → α → Expr β) → ∀ { z x }
   refl = λ {s} f {z} {x} {k} {E} → IsEquivalence.refl ≅ₚ-equiv {fold f z s x} {k} {E} ;
   trans = λ A B f → IsEquivalence.trans (≅ₚ-equiv {0}) (A f) (B f) ;
   sym = λ A f → IsEquivalence.sym (≅ₚ-equiv {0}) (A f) }
-
-≅ₚ-setoid : ∀ { n } { v : Sets n L0 } → Setoid _ _
-≅ₚ-setoid {v = v} = record {
-  Carrier = v ⇉ Statement ;
-  _≈_ = _≅ₚ_ ;
-  isEquivalence = ≅ₚ-equiv }
-
-import Relation.Binary.Reasoning.Setoid as Reasoning
-open module ≅-Reasoning = Reasoning (≅ₚ-setoid {0})
-  renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_) public
 
 postulate ≅-cong : ∀ { α } { A : Set } (f : (A → SStream α) → SStream α) (x y : A → SStream α) → (∀ i → x i ≅ y i) → f x ≅ f y
 
@@ -520,6 +511,75 @@ fold-unfold : ∀ { α ζ ξ }
 -- fold-take : ∀ { α ζ }
 --   { f : Expr ζ → Expr α → Expr ζ } { z : Expr ζ } { n : Expr Int } { s : Stream α }
 --   → fold f z (take n s) ≅ₚ fold {!λ { (x , m) y → {!with m < n | true = (f x y , m + 1) | false = (y , m + 1)!} }!} z s
+
+map-preserves-size : ∀ { α β } (s : SStream α) (f : α → β) → ∥ map' f s ∥ₛ ≡ ∥ s ∥ₛ
+map-preserves-size (linear (producer (_ , for _))) _ = refl
+map-preserves-size (linear (producer (_ , unfolder _))) _ = refl
+map-preserves-size (nested _) _ = refl
+
+maps-can-zip : ∀ { α β α' β' } (s : SStream α) (t : SStream β) (f : α → α') (g : β → β')
+  → ∥ s ∥ₛ ℕ.+ ∥ t ∥ₛ ℕ.≤ 1 → ∥ map' f s ∥ₛ ℕ.+ ∥ map' g t ∥ₛ ℕ.≤ 1
+maps-can-zip s t f g p =
+  ≤-trans
+    (+-mono-≤
+      (≤-reflexive (map-preserves-size s f))
+      (≤-reflexive (map-preserves-size t g)))
+    p
+
+zip-map : ∀ { α β α' β' } (s : SStream α) (t : SStream β) (f : α → α') (g : β → β') (p : ∥ s ∥ₛ ℕ.+ ∥ t ∥ₛ ℕ.≤ 1)
+  → zip (map' f s) (map' g t) {maps-can-zip s t f g p} ≅ map' (λ { (x , y) → f x , g y }) (zip s t {p})
+zip-map s@(linear (producer (i₁ , for (b₁ , ix₁)))) t@(linear (producer (i₂ , for (b₂ , ix₂)))) f g p F {z} {x} =
+  let q = maps-can-zip s t f g p in
+  begin
+    fold F z (zip (map' f s) (map' g t) {q}) x
+    ≡⟨⟩
+    fold F z (
+      zip
+        (linear (producer (i₁ , for (b₁ , λ s i k → ix₁ s i (λ e → k (f e))))))
+        (linear (producer (i₂ , for (b₂ , λ s i k → ix₂ s i (λ e → k (g e)))))) {q}) x
+    ≡⟨⟩
+    fold F z (
+      linear (
+        producer (
+          (λ k → i₁ (λ a → i₂ (λ b → k (a , b)))) ,
+          for (
+            (λ { (a , b) r →
+              decl Int λ x →
+              decl Int λ y →
+              x ← b₁ a ；
+              y ← b₂ b ；
+              if (★ x) < (★ y) then
+                r ≔ ★ x
+              else
+                r ≔ ★ y
+            }) ,
+            λ { (a , b) i k →
+              ix₁ a i (λ n → ix₂ b i (λ m → k (f n , g m)))
+            })))) x
+    ≅⟨ {!!} ⟩
+    fold F z (
+      map'
+        (λ { (x , y) → f x , g y })
+        {!linear (zipProducer (producer (i₁ , for (b₁ , ix₁))) (producer (i₂ , for (b₂ , ix₂))))!}) x
+        -- (linear (
+        --   producer (
+        --     (λ k → i₁ (λ a → i₂ (λ b → k (a , b)))) ,
+        --     for (
+        --       (λ { (a , b) r →
+        --         decl Int λ x →
+        --         decl Int λ y →
+        --         x ← b₁ a ；
+        --         y ← b₂ b ；
+        --         if (★ x) < (★ y) then
+        --           r ≔ ★ x
+        --         else
+        --           r ≔ ★ y }) ,
+        --       λ { (a , b) i k →
+        --         ix₁ a i (λ n → ix₂ b i (λ m → k (n , m))) }
+        --     ))))) x
+    ≡⟨⟩
+    fold F z (map' (λ { (x , y) → f x , g y }) (zip s t {p})) x
+  ∎
 
 module Monad where
 

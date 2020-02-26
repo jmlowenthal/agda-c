@@ -141,6 +141,19 @@ _≅ₚ_ {ℕ.suc n} {h , t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
 ≅ₚ-equiv : ∀ { n } { v : Sets n L0 } → IsEquivalence (_≅ₚ_ {v = v})
 ≅ₚ-equiv = record { refl = ≅ₚ-refl ; sym = ≅ₚ-sym ; trans = ≅ₚ-trans }
 
+≅ₚ-setoid : ∀ { n } { v : Sets n L0 } → Setoid _ _
+≅ₚ-setoid {v = v} = record {
+  Carrier = v ⇉ Statement ;
+  _≈_ = _≅ₚ_ ;
+  isEquivalence = ≅ₚ-equiv }
+
+import Relation.Binary.Reasoning.Setoid as Reasoning
+module ≅-Reasoning = Reasoning (≅ₚ-setoid {0})
+  renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_)
+
+open ≅-Reasoning
+  renaming (_≡⟨⟩_ to _≡'⟨⟩_ ; begin_ to begin'_ ; _∎ to _∎')
+
 postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → Statement) (x y : v ⇉ Statement) → x ≅ₚ y → f x ≅ₚ f y
 -- ≅ₚ-cong {v = []} {[]} f x y x≅y {k} {E} =
 --   ≅ₛ-cong (λ { (𝒮 s k E) → 𝒮 (f s) k E }) (𝒮 x k E) (𝒮 y k E) x≅y
