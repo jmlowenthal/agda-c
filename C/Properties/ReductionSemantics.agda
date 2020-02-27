@@ -57,9 +57,7 @@ data SemEquiv R where
   sem-converge : ∀ { X Y }
     → ∃[ A ] (∃[ B ] (Star R X A × Star R Y B × A ≅[ R ] B)) → X ≅[ R ] Y
   sem-loop : ∀ { s₁ s₂ s₃ s₄ : Statement } { k₁ k₂ k₃ k₄ E₁ E₂ E₃ E₄ } { f e : SideEffects }
-    → Star R (𝒮 s₁ k₁ E₁ e) (𝒮 s₂ k₂ E₂ (f ++ₗ e))
-    → Star R (𝒮 s₃ k₃ E₃ e) (𝒮 s₄ k₄ E₄ (f ++ₗ e))
-    → 𝒮 s₂ k₂ E₂ (f ++ₗ e) ≅[ R ] 𝒮 s₄ k₄ E₄ (f ++ₗ e)
+    → SameEffects R s₁ s₂ s₃ s₄ k₁ k₂ k₃ k₄ E₁ E₂ E₃ E₄ f e
     → 𝒮 s₁ k₁ E₁ e ≅[ R ] 𝒮 s₃ k₃ E₃ e
 
 record Semantics : Set₁ where
@@ -227,8 +225,12 @@ record Semantics : Set₁ where
   ≅ₛ-sym sem-refl = sem-refl
   ≅ₛ-sym (sem-converge (A , B , i↝*A , j↝*B , A≅B)) =
     sem-converge (B , A , j↝*B , i↝*A , ≅ₛ-sym A≅B)
-  ≅ₛ-sym (sem-loop X↝*X' Y↝*Y' X'≅Y') =
-    sem-loop Y↝*Y' X↝*X' (≅ₛ-sym X'≅Y')
+  ≅ₛ-sym (sem-loop w) = sem-loop x
+    where
+      x : SameEffects _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+      SameEffects.left x = {!!}
+      SameEffects.right x = {!!}
+      SameEffects.eq x = {!!}
 
   ↝*⇒≅ₛ : ∀ { A B } → A ↝* B → A ≅ₛ B
   ↝*⇒≅ₛ A↝*B = sem-converge (_ , _ , A↝*B , ε , sem-refl)
@@ -244,13 +246,13 @@ record Semantics : Set₁ where
     with normalise A≅B
   ... | sem-refl = sem-converge (A , B , i↝*A , j↝*B , sem-refl)
   ... | sem-converge (C , D , A↝*C , B↝*D , C≅D) = sem-converge (C , D , i↝*A ◅◅ A↝*C , j↝*B ◅◅ B↝*D , C≅D)
-  ... | p@(sem-loop _ _ _) = sem-converge (A , B , i↝*A , j↝*B , p)
-  normalise (sem-loop {f = f} {e} X↝*X' Y↝*Y' X'≅Y')
-    with normalise X'≅Y'
-  ... | sem-refl = sem-loop X↝*X' Y↝*Y' sem-refl
-  ... | p@(sem-converge _) = sem-loop X↝*X' Y↝*Y' p
-  ... | sem-loop {f = f'} X'↝*X'' Y'↝*Y'' X''≅Y'' rewrite sym (++-assoc f' f e)
-        = sem-loop (X↝*X' ◅◅ X'↝*X'') (Y↝*Y' ◅◅ Y'↝*Y'') X''≅Y''
+  ... | p@(sem-loop _) = sem-converge (A , B , i↝*A , j↝*B , p)
+  normalise (sem-loop w) = {!!}
+  --   with normalise X'≅Y'
+  -- ... | sem-refl = sem-loop X↝*X' Y↝*Y' sem-refl
+  -- ... | p@(sem-converge _) = sem-loop X↝*X' Y↝*Y' p
+  -- ... | sem-loop {f = f'} X'↝*X'' Y'↝*Y'' X''≅Y'' rewrite sym (++-assoc f' f e)
+  --       = sem-loop (X↝*X' ◅◅ X'↝*X'') (Y↝*Y' ◅◅ Y'↝*Y'') X''≅Y''
 
   ≅ₛ-trans : Transitive _≅ₛ_
   ≅ₛ-trans sem-refl q = q
@@ -262,8 +264,8 @@ record Semantics : Set₁ where
       (sem-converge (A , B , i↝*A , X↝*B , A≅B))
       (sem-converge (_ , _ , ε , k↝*D , ≅ₛ-trans (sem-converge (_ , _ , ε , j↝X ◅ ε , sem-refl)) C≅D))
   ≅ₛ-trans (sem-converge (A , B , i↝*A , j↝*B@(_ ◅ _) , A≅B)) (sem-converge (C , D , x ◅ j↝*C , k↝*D , C≅D)) = {!!}
-  ≅ₛ-trans (sem-converge x) (sem-loop x₁ x₂ q) = {!!}
-  ≅ₛ-trans (sem-loop x y p) q = {!!}
+  ≅ₛ-trans (sem-converge x) (sem-loop w) = {!!}
+  ≅ₛ-trans (sem-loop w) q = {!!}
   
   ≅ₛ-equiv : IsEquivalence _≅ₛ_
   ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
