@@ -30,7 +30,7 @@ record C : Set₁ where
     Expr : c_type → Set
     Statement : Set
     Ref : c_type → Set
-    ⟨_⟩ : ℤ → Expr Int
+    ⟪_⟫ : ℤ → Expr Int
     _+_ _*_ _-_ _/_ : Expr Int → Expr Int → Expr Int
     _<_ _<=_ _>_ _>=_ _==_ : Expr Int → Expr Int → Expr Bool
     true false : Expr Bool

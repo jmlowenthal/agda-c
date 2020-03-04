@@ -97,6 +97,21 @@ _+̂_ : MaybeSideEffect → MaybeSideEffects → MaybeSideEffects
 (x ↦ v) +̂ t = (x ↦ v) ∷ t
 emit v +̂ t = emit v ∷ t
 
+data +-proof : MaybeSideEffect → MaybeSideEffects → MaybeSideEffects → Set where
+  [1] : ∀ t → +-proof τ t t
+  [2] : ∀ {α} x v t → +-proof (_↦_ {α} x v) t ((x ↦ v) ∷ t)
+  [3] : ∀ v t → +-proof (emit v) t (emit v ∷ t)
+
++-proof-sound : ∀ { a b c } → +-proof a b c → c ≡ a +̂ b
++-proof-sound ([1] _) = refl
++-proof-sound ([2] _ _ _) = refl
++-proof-sound ([3] _ _) = refl
+
++-proof-complete : ∀ { a b c } → c ≡ a +̂ b → +-proof a b c
++-proof-complete {τ} {b} {.b} refl = [1] b
++-proof-complete {x ↦ x₁} {b} {.((x ↦ x₁) ∷ b)} refl = [2] x x₁ b
++-proof-complete {emit x} {b} {.(emit x ∷ b)} refl = [3] x b
+
 _++_ : MaybeSideEffects → MaybeSideEffects → MaybeSideEffects
 τ ++ b = b
 (x ∷ a) ++ b = x ∷ (a ++ b)
@@ -119,18 +134,19 @@ Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
 
 data _⊢_~[_]↝⁺_ (reduce : Reducer) : State → MaybeSideEffects → State → Set where
   [_] : ∀ { x y e } (x~y : reduce ⊢ x ~[ e ]↝ y) → reduce ⊢ x ~[ e +̂ τ ]↝⁺ y
-  _∷_ : ∀ { x y z e f } (x~y : reduce ⊢ x ~[ e ]↝ y) (y∼⁺z : reduce ⊢ y ~[ f ]↝⁺ z)
-    → reduce ⊢ x ~[ e +̂ f ]↝⁺ z
+  _∷_⟨_⟩ : ∀ { x y z e f g } (x~y : reduce ⊢ x ~[ e ]↝ y) (y∼⁺z : reduce ⊢ y ~[ f ]↝⁺ z)
+    → +-proof e f g → reduce ⊢ x ~[ g ]↝⁺ z
 
 data _⊢_~[_]↝*_ (reduce : Reducer) : State → MaybeSideEffects → State → Set where
   ε : ∀ { s } → reduce ⊢ s ~[ τ ]↝* s
-  _◅_ : ∀ { i j k e es } (x : reduce ⊢ i ~[ e ]↝ j) (xs : reduce ⊢ j ~[ es ]↝* k)
-    → reduce ⊢ i ~[ e +̂ es ]↝* k
+  _◅_⟨_⟩ : ∀ { i j k e es f } (x : reduce ⊢ i ~[ e ]↝ j) (xs : reduce ⊢ j ~[ es ]↝* k)
+    → +-proof e es f → reduce ⊢ i ~[ f ]↝* k
 
 _◅◅_ : ∀ { reduce : Reducer } { i j k e f }
   → reduce ⊢ i ~[ e ]↝* j → reduce ⊢ j ~[ f ]↝* k → reduce ⊢ i ~[ e ++ f ]↝* k
 ε ◅◅ b = b
-_◅◅_ {f = f} (_◅_ {e = e} {es} x a) b rewrite +-++-assoc e es f = x ◅ (a ◅◅ b) 
+_◅◅_ {f = f} (_◅_⟨_⟩ {e = e} {es} x a p) b
+  rewrite +-proof-sound p = x ◅ (a ◅◅ b) ⟨ +-proof-complete (+-++-assoc e es f) ⟩
 
 record Semantics : Set₁ where
   field
@@ -160,7 +176,7 @@ record Semantics : Set₁ where
       → (E ⊕ (x Env.↦ v , (y Env.↦ w , ε)) ⊕ E') ⊢ e ⇒ ev
       → (E ⊕ (y Env.↦ w , (x Env.↦ v , ε)) ⊕ E') ⊢ e ⇒ ev
     -- TODO: variants on Env constructor
-    nat : ∀ { E } n → E ⊢ ⟨ n ⟩ ⇒ n
+    nat : ∀ { E } n → E ⊢ ⟪ n ⟫ ⇒ n
     deref : ∀ { E α } { x : Ref α } { v : ⟦ α ⟧ }
       → x ↦ v ∈nv E → (E ⊢ (★ x) ⇒ v)
     +-eval : ∀ { E x y x' y' }
@@ -202,13 +218,13 @@ record Semantics : Set₁ where
       → 𝒮 (for l to u then f) k E
         ~[ τ ]↝ 𝒮 (if (l < u) then (
                 (decl Int λ i → i ≔ l ； f i) ；
-                for (l + ⟨ ℤ.+ 1 ⟩) to u then f)
+                for (l + ⟪ ℤ.+ 1 ⟫) to u then f)
              else nop) k E
     ↝-while : ∀ { E k } { e : Expr Bool } { s : Statement }
       → 𝒮 (while e then s) k E ~[ τ ]↝ 𝒮 (if e then (s ； while e then s) else nop) k E
     ↝-putchar : ∀ { E k } { e : Expr Int } { v : ℤ.ℤ }
       → E ⊢ e ⇒ v → 𝒮 (putchar e) k E ~[ emit v ]↝ 𝒮 nop k E
-    ↝-det : ∀ { S S₁ S₂ e f } → S ~[ e ]↝ S₁ → S ~[ f ]↝ S₂ → S₁ ≡ S₂
+    ↝-det : ∀ { S S₁ S₂ e f } → S ~[ e ]↝ S₁ → S ~[ f ]↝ S₂ → e ≡ f × S₁ ≡ S₂
     ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] (𝒮 x k E ~[ τ ]↝ S'))
 
   infix 0 _≅ₑ_
@@ -259,11 +275,13 @@ record Semantics : Set₁ where
 
   ↝*-to-↝⁺ : ∀ { A B C e es } → A ~[ e ]↝ B → B ~[ es ]↝* C → A ~[ e +̂ es ]↝⁺ C
   ↝*-to-↝⁺ A↝B ε = [ A↝B ]
-  ↝*-to-↝⁺ A↝B (B↝X ◅ X↝*C) = A↝B ∷ (↝*-to-↝⁺ B↝X X↝*C)
+  ↝*-to-↝⁺ A↝B (B↝X ◅ X↝*C ⟨ p ⟩)
+    rewrite +-proof-sound p = A↝B ∷ (↝*-to-↝⁺ B↝X X↝*C) ⟨ +-proof-complete refl ⟩
 
   ↝⁺-to-↝* : ∀ { A B es } → A ~[ es ]↝⁺ B → A ~[ es ]↝* B
-  ↝⁺-to-↝* ([ A↝B ]) = A↝B ◅ ε
-  ↝⁺-to-↝* (A↝X ∷ X↝⁺B) = A↝X ◅ (↝⁺-to-↝* X↝⁺B)
+  ↝⁺-to-↝* ([ A↝B ]) = A↝B ◅ ε ⟨ +-proof-complete refl ⟩
+  ↝⁺-to-↝* (A↝X ∷ X↝⁺B ⟨ p ⟩)
+    rewrite +-proof-sound p = A↝X ◅ (↝⁺-to-↝* X↝⁺B) ⟨ +-proof-complete refl ⟩
 
   ↝̸-transᵇ : ∀ { S S' : State } { e }
     → S ~[ e ]↝* S' → Terminating S' → Terminating S
@@ -272,10 +290,9 @@ record Semantics : Set₁ where
   ↝̸-transᶠ : ∀ { S S' : State } { e }
     → S ~[ e ]↝* S' → Terminating S → Terminating S'
   ↝̸-transᶠ ε S↝̸ = S↝̸
-  ↝̸-transᶠ (S↝X ◅ X↝*S') (S , _ , ε , S↝̸) = ⊥-elim (S↝̸ _ _ S↝X)
-  ↝̸-transᶠ (S↝A ◅ A↝*S') (X , e , S↝Y ◅ Y↝*X , X↝̸)
-    with ↝-det S↝A S↝Y
-  ... | refl = ↝̸-transᶠ A↝*S' (X , _ , Y↝*X , X↝̸)
+  ↝̸-transᶠ (S↝X ◅ X↝*S' ⟨ _ ⟩) (S , _ , ε , S↝̸) = ⊥-elim (S↝̸ _ _ S↝X)
+  ↝̸-transᶠ (S↝A ◅ A↝*S' ⟨ _ ⟩) (X , e , S↝Y ◅ Y↝*X ⟨ _ ⟩ , X↝̸)
+    rewrite proj₂ (↝-det S↝A S↝Y) = ↝̸-transᶠ A↝*S' (X , _ , Y↝*X , X↝̸)
 
   ↝ω-transᵇ : ∀ { X Y : State } { e }
     → X ~[ e ]↝* Y → ¬ Terminating Y → ¬ Terminating X
@@ -288,17 +305,17 @@ record Semantics : Set₁ where
   ↝*-det : ∀ { S S₁ S₂ x y }
     → Stuck S₁ → Stuck S₂ → S ~[ x ]↝* S₁ → S ~[ y ]↝* S₂ → S₁ ≡ S₂
   ↝*-det S₁↝̸ S₂↝̸ ε ε = refl
-  ↝*-det S↝̸ S₂↝̸ ε (_◅_ {j = X} S↝X X↝*S₂) = ⊥-elim (S↝̸ X _ S↝X)
-  ↝*-det S₁↝̸ S↝̸ (_◅_ {j = X} S↝X X↝*S₂) ε = ⊥-elim (S↝̸ X _ S↝X)
-  ↝*-det S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
-    rewrite ↝-det S↝X S↝Y = ↝*-det S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
+  ↝*-det S↝̸ S₂↝̸ ε (S↝X ◅ X↝*S₂ ⟨ _ ⟩) = ⊥-elim (S↝̸ _ _ S↝X)
+  ↝*-det S₁↝̸ S↝̸ (S↝X ◅ X↝*S₂ ⟨ _ ⟩) ε = ⊥-elim (S↝̸ _ _ S↝X)
+  ↝*-det S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁ ⟨ _ ⟩) (S↝Y ◅ Y↝*S₂ ⟨ _ ⟩)
+    rewrite proj₂ (↝-det S↝X S↝Y) = ↝*-det S₁↝̸ S₂↝̸ X↝*S₁ Y↝*S₂
 
   ↝*-det' : ∀ { S S₁ S₂ x y }
     → S ~[ x ]↝* S₁ → S ~[ y ]↝* S₂ → ∃[ z ] (S₁ ~[ z ]↝* S₂ ⊎ S₂ ~[ z ]↝* S₁)
   ↝*-det' ε S↝*S₂ = _ , inj₁ S↝*S₂
-  ↝*-det' S↝*S₁@(S↝X ◅ X↝*S₁) ε = _ , inj₂ S↝*S₁
-  ↝*-det' (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
-    rewrite ↝-det S↝X S↝Y = ↝*-det' X↝*S₁ Y↝*S₂
+  ↝*-det' S↝*S₁@(S↝X ◅ X↝*S₁ ⟨ _ ⟩) ε = _ , inj₂ S↝*S₁
+  ↝*-det' (S↝X ◅ X↝*S₁ ⟨ _ ⟩) (S↝Y ◅ Y↝*S₂ ⟨ _ ⟩)
+    rewrite proj₂ (↝-det S↝X S↝Y) = ↝*-det' X↝*S₁ Y↝*S₂
 
   ≅ₛ-refl : Reflexive _≅ₛ_
   ≅ₛ-refl = CoB.reflexive refl
@@ -311,3 +328,7 @@ record Semantics : Set₁ where
   
   ≅ₛ-equiv : IsEquivalence _≅ₛ_
   ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
+
+  ↝*⇒≅ₛ : ∀ { A B } → A ~[ τ ]↝* B → A ≅ₛ B
+  ↝*⇒≅ₛ ε = CoB.refl
+  ↝*⇒≅ₛ (_◅_⟨_⟩ {e = τ} h t ([1] .τ)) = CoB.trans h (↝*⇒≅ₛ t)
