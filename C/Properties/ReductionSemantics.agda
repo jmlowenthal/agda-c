@@ -119,7 +119,7 @@ record Semantics : Set₁ where
 
   infix 0 _≅ₛ_
   _≅ₛ_ : Rel State 0ℓ
-  X ≅ₛ Y = ?
+  X ≅ₛ Y = {!!}
 
   field
     ≅ₛ-subst :
@@ -196,7 +196,7 @@ record Semantics : Set₁ where
     rewrite ↝-det S↝X S↝Y = ↝*-det' X↝*S₁ Y↝*S₂
 
   ≅ₛ-refl : Reflexive _≅ₛ_
-  ≅ₛ-refl = ?
+  ≅ₛ-refl = {!!}
   
   ≅ₛ-sym : Symmetric _≅ₛ_
   ≅ₛ-sym x = {!!}

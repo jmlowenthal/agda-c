@@ -15,9 +15,10 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Function.Nary.NonDependent
+open import Size
 
 import Level
-
+import Codata.Colist.Bisimilarity as CoB
 
 module C.Properties.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
 
@@ -108,40 +109,40 @@ L0 : ∀ { n } → Levels n
 L0 {0} = _
 L0 {ℕ.suc n} = Level.zero , L0
 
-infix 0 _≅ₚ_
-_≅ₚ_ : ∀ { n } { v : Sets n L0 } → Rel (v ⇉ Statement) Level.zero
-_≅ₚ_ {0} {lift} x y = ∀ { k E } → 𝒮 x k E ≅ₛ 𝒮 y k E
-_≅ₚ_ {ℕ.suc n} {h , t} x y = {r : h} → _≅ₚ_ {v = t} (x r) (y r)
+infix 0 _⊢_≅ₚ_
+_⊢_≅ₚ_ : ∀ (i : Size) { n } { v : Sets n L0 } → Rel (v ⇉ Statement) Level.zero
+_⊢_≅ₚ_ i {0} x y = ∀ { k E } → i ⊢ 𝒮 x k E ≅ₛ 𝒮 y k E
+_⊢_≅ₚ_ i {ℕ.suc n} {_ , v} x y = ∀ { r } → _⊢_≅ₚ_ i (x r) (y r)
 
-≅ₚ-refl : ∀ { n } { v : Sets n L0 } → Reflexive (_≅ₚ_ {v = v})
-≅ₚ-refl {0} {lift} {x} {k} {E} = IsEquivalence.refl ≅ₛ-equiv
-≅ₚ-refl {ℕ.suc n} {x , v} = ≅ₚ-refl {v = v}
+≅ₚ-refl : ∀ { i n } { v : Sets n L0 } → Reflexive (_⊢_≅ₚ_ i {v = v})
+≅ₚ-refl {_} {ℕ.zero} {Level.lift _} {_} = ≅ₛ-refl
+≅ₚ-refl {_} {ℕ.suc n} {x , v} = (≅ₚ-refl {v = v})
 
-≅ₚ-sym : ∀ { n } { v : Sets n L0 } → Symmetric (_≅ₚ_ {v = v})
-≅ₚ-sym {0} {lift} i~j = IsEquivalence.sym ≅ₛ-equiv i~j
-≅ₚ-sym {ℕ.suc n} {x , v} i~j = ≅ₚ-sym {v = v} i~j
+≅ₚ-sym : ∀ { i n } { v : Sets n L0 } → Symmetric (_⊢_≅ₚ_ i {v = v})
+-- ≅ₚ-sym {_} {0} {lift} i~j = IsEquivalence.sym ≅ₛ-equiv i~j
+-- ≅ₚ-sym {_} {ℕ.suc n} {x , v} i~j = ≅ₚ-sym {v = v} i~j
 
-≅ₚ-trans : ∀ { n } { v : Sets n L0 } → Transitive (_≅ₚ_ {v = v})
-≅ₚ-trans {0} {lift} i~j j~k = IsEquivalence.trans ≅ₛ-equiv i~j j~k
-≅ₚ-trans {ℕ.suc n} {x , v} i~j j~k = ≅ₚ-trans {v = v} i~j j~k
+≅ₚ-trans : ∀ { i n } { v : Sets n L0 } → Transitive (_⊢_≅ₚ_ i {v = v})
+-- ≅ₚ-trans {0} {lift} i~j j~k = IsEquivalence.trans ≅ₛ-equiv i~j j~k
+-- ≅ₚ-trans {ℕ.suc n} {x , v} i~j j~k = ≅ₚ-trans {v = v} i~j j~k
 
-≅ₚ-equiv : ∀ { n } { v : Sets n L0 } → IsEquivalence (_≅ₚ_ {v = v})
+≅ₚ-equiv : ∀ { i n } { v : Sets n L0 } → IsEquivalence (_⊢_≅ₚ_ i {v = v})
 ≅ₚ-equiv = record { refl = ≅ₚ-refl ; sym = ≅ₚ-sym ; trans = ≅ₚ-trans }
 
-≅ₚ-setoid : ∀ { n } { v : Sets n L0 } → Setoid _ _
-≅ₚ-setoid {v = v} = record {
+≅ₚ-setoid : ∀ { i n } { v : Sets n L0 } → Setoid _ _
+≅ₚ-setoid {i} {v = v} = record {
   Carrier = v ⇉ Statement ;
-  _≈_ = _≅ₚ_ ;
+  _≈_ = i ⊢_≅ₚ_ ;
   isEquivalence = ≅ₚ-equiv }
 
 import Relation.Binary.Reasoning.Setoid as Reasoning
-module ≅-Reasoning = Reasoning (≅ₚ-setoid {0})
+module ≅-Reasoning { i } = Reasoning (≅ₚ-setoid {i} {0})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_)
 
 open ≅-Reasoning
   renaming (_≡⟨⟩_ to _≡'⟨⟩_ ; begin_ to begin'_ ; _∎ to _∎')
 
-postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → Statement) (x y : v ⇉ Statement) → x ≅ₚ y → f x ≅ₚ f y
+postulate ≅ₚ-cong : ∀ { i n } { v : Sets n L0 } (f : (v ⇉ Statement) → Statement) (x y : v ⇉ Statement) → i ⊢ x ≅ₚ y → i ⊢ f x ≅ₚ f y
 -- ≅ₚ-cong {v = []} {[]} f x y x≅y {k} {E} =
 --   ≅ₛ-cong (λ { (𝒮 s k E) → 𝒮 (f s) k E }) (𝒮 x k E) (𝒮 y k E) x≅y
 -- ≅ₚ-cong {v = α ∷ αs} {[]} f x y x≅y {k} {E} =
@@ -152,27 +153,27 @@ postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → S
 -- ≅ₚ-cong {v = v} {β ∷ βs} f x y x≅y {r} =
 --   ≅ₚ-cong {v = v} {βs} (λ c → f c r) _ _ x≅y
 
-postulate ；-assoc : Associative _≅ₚ_ _；_
+postulate ；-assoc : ∀ { i } → Associative (i ⊢_≅ₚ_) _；_
 
 β-if-true : ∀ { x y : Statement }
-  → (if true then x else y) ≅ₚ x
-β-if-true = ↝*⇒≅ₛ {!↝-if-true true-eval!}
+  → _ ⊢ (if true then x else y) ≅ₚ x
+β-if-true = ↝⇒≅ₛ (↝-if-true true-eval)
 
-β-if-false : ∀ { x y : Statement } → if false then x else y ≅ₚ y
-β-if-false = ↝*⇒≅ₛ {!↝-if-false false-eval ◅ ε ⟨ ? ⟩!}
+β-if-false : ∀ { x y : Statement } → _ ⊢ if false then x else y ≅ₚ y
+β-if-false = ↝⇒≅ₛ (↝-if-false false-eval)
 
-η-if : ∀ { cond : Expr Bool } { e : Statement } → if cond then e else e ≅ₚ e
+η-if : ∀ { cond : Expr Bool } { e : Statement } → _ ⊢ if cond then e else e ≅ₚ e
 η-if {cond}
   with ⊢-total {e = cond}
-... | (𝔹.false , ⇒false) = ↝*⇒≅ₛ {!↝-if-false ⇒false ◅ ε ⟨ ? ⟩)!}
-... | (𝔹.true , ⇒true) = ↝*⇒≅ₛ {!(↝-if-true ⇒true ◅ ε ⟨ ? ⟩)!}
+... | (𝔹.false , ⇒false) = ↝⇒≅ₛ (↝-if-false ⇒false)
+... | (𝔹.true , ⇒true) = ↝⇒≅ₛ (↝-if-true ⇒true)
 
 β-while : ∀ { e₁ : Expr Bool } { e₂ : Statement }
-  → while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
-β-while = ↝*⇒≅ₛ {!↝-while ◅ ε ⟨ ? ⟩!}
+  → _ ⊢ while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
+β-while = ↝⇒≅ₛ ↝-while
 
 ≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
-  → (x ≔ e ； f (★ x)) ≅ₚ (f e)
+  → _ ⊢ (x ≔ e ； f (★ x)) ≅ₚ (f e)
 -- ≔-subst {α} {x} {e} {f} {k} {E}
 --   with ⊢-total {α} {E} {e}
 -- ... | v , ⇒v
@@ -184,23 +185,23 @@ postulate ；-assoc : Associative _≅ₚ_ _；_
 --         let reduction = ↝-seq ◅ ↝-assignment ⇒v ⟨ ? ⟩ ◅ ↝-nop ⟨ ? ⟩ ◅ ε ⟨ ? ⟩ in
 --           inj₂ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
 
-decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
+decl-elim : ∀ { α } { f : Statement } → _ ⊢ (decl α λ x → f) ≅ₚ f
 decl-elim {α} {f} = ≅ₛ-decl
 
-nested-while-loop : ∀ { s t : Statement }
-  → s ≅ₚ t → while true then s ≅ₚ while true then (while true then t)
-nested-while-loop {s} {t} s≅t =
+nested-while-loop : ∀ { i } { s t : Statement }
+  → i ⊢ s ≅ₚ t → i ⊢ while true then s ≅ₚ while true then (while true then t)
+nested-while-loop {_} {s} {t} s≅t =
   begin'
     (while true then s)
-    ≅⟨ ≅ₚ-cong {0} (λ s → while true then s) s t s≅t ⟩
+    ≅⟨ ≅ₚ-cong {_} {0} (λ s → while true then s) s t s≅t ⟩
     (while true then t)
-    ≅⟨ ↝*⇒≅ₛ {!↝-while ◅ ε ⟨ ? ⟩!} ⟩
+    ≅⟨ ↝⇒≅ₛ ↝-while ⟩
     (if true then (t ； while true then t) else nop)
     ≅⟨ β-if-true ⟩
     (t ； while true then t)
     ≅⟨ {!!} ⟩
     ((t ； while true then t) ； while true then (while true then t))
-    ≅⟨ {!inj₁ (_ , ↝-seq ◅ ε ⟨ ? ⟩ , ↝-seq ◅ (↝-if-true true-eval) ⟨ ? ⟩ ◅ ε ⟨ ? ⟩)!} ⟩
+    ≅⟨ {!? CoB.∷ ?!} ⟩ --≅⟨ {!inj₁ (_ , ↝-seq ◅ ε ⟨ ? ⟩ , ↝-seq ◅ (↝-if-true true-eval) ⟨ ? ⟩ ◅ ε ⟨ ? ⟩)!} ⟩
     (if true then (t ； while true then t) else nop ； while true then (while true then t))
     ≅⟨ {!inj₁ (_ , ↝-seq ◅ ε ⟨ ? ⟩ , ↝-seq ◅ ↝-while ⟨ ? ⟩ ◅ ε ⟨ ? ⟩)!} ⟩
     (while true then t ； while true then (while true then t))
@@ -210,5 +211,5 @@ nested-while-loop {s} {t} s≅t =
     (while true then (while true then t))
   ∎'
 
-nested-while-loop' : ∀ { s t : Statement } { e : Expr Bool }
-  → s ≅ₚ t → while e then s ≅ₚ while e then (while e then t)
+nested-while-loop' : ∀ { i } { s t : Statement } { e : Expr Bool }
+  → i ⊢ s ≅ₚ t → i ⊢ while e then s ≅ₚ while e then (while e then t)
