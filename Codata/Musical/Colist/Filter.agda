@@ -1,5 +1,3 @@
-module _ where
-
 open import Codata.Musical.Notation
 open import Codata.Musical.Colist
 open import Codata.Musical.Conat
@@ -11,6 +9,8 @@ open import Data.Nat
 open import Relation.Binary.PropositionalEquality
 open import Data.BoundedVec.Inefficient
 import Level
+
+module _ where
 
 data Empty { a } { A : Set a } : Colist (Maybe A) → Set where
   [] : Empty []
@@ -43,6 +43,3 @@ Finite⇒Filterable (just x ∷ p) = 1 ⊢ here x ∷ (♯ Finite⇒Filterable p
 Finite⇒Filterable (nothing ∷ p) with Finite⇒Filterable p
 ... | empty x = empty (step (♯ x))
 ... | n ⊢ h ∷ t = (suc n) ⊢ there h ∷ t
-
-filter' : ∀ { a } { A : Set a } (l : Colist (Maybe A)) → Finite l → Colist A
-filter' l p = filter l (Finite⇒Filterable p)
