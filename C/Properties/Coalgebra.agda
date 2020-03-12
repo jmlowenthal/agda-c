@@ -210,7 +210,7 @@ record Semantics : Set₁ where
     ↝-if-false : ∀ { i E k } { cond : Expr Bool } { s₁ s₂ : Statement }
       → E ⊢ cond ⇒ 𝔹.false → i ⊢ 𝒮 (if cond then s₁ else s₂) k E ~[ τ ]↝ 𝒮 s₂ k E
     ↝-assignment : ∀ { i E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
-      → E ⊢ e ⇒ v → i ⊢ 𝒮 (id ≔ e) k E ~[ τ ]↝ 𝒮 nop k (id Env.↦ v , E)
+      → E ⊢ e ⇒ v → i ⊢ 𝒮 (id ≔ e) k E ~[ τ ]↝ 𝒮 nop k (id Env.↦ v , E) --TODO sideeffect
     ↝-seq : ∀ { i E k } { s₁ s₂ : Statement }
       → i ⊢ 𝒮 (s₁ ； s₂) k E ~[ τ ]↝ 𝒮 s₁ (s₂ then k) E
     ↝-decl : ∀ { i E k α } { f : Ref α → Statement }
