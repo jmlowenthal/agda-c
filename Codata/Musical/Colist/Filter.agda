@@ -10,11 +10,11 @@ open import Relation.Binary.PropositionalEquality
 open import Data.BoundedVec.Inefficient
 import Level
 
-module _ where
+module Codata.Musical.Colist.Filter where
 
 data Empty { a } { A : Set a } : Colist (Maybe A) → Set where
   [] : Empty []
-  step : ∀ { t } → ∞ (Empty (♭ t)) → Empty (nothing ∷ t)
+  nothing : ∀ { t } → ∞ (Empty (♭ t)) → Empty (nothing ∷ t)
 
 data BoundedAny {a} {A : Set a} : ∀ { n } → BoundedVec (Maybe A) n → Set a where
   here : ∀ { n } { xs : BoundedVec _ n } (x : A) → BoundedAny (just x ∷ xs)
@@ -41,5 +41,5 @@ Finite⇒Filterable : ∀ {a} {A : Set a} {l : Colist (Maybe A)} → Finite l �
 Finite⇒Filterable [] = empty []
 Finite⇒Filterable (just x ∷ p) = 1 ⊢ here x ∷ (♯ Finite⇒Filterable p)
 Finite⇒Filterable (nothing ∷ p) with Finite⇒Filterable p
-... | empty x = empty (step (♯ x))
+... | empty x = empty (nothing (♯ x))
 ... | n ⊢ h ∷ t = (suc n) ⊢ there h ∷ t
