@@ -32,6 +32,7 @@ module C.Properties.Musical ⦃ _ : C ⦄ where
 data SideEffect : Set where
   _↦_ : ∀ { α } → Ref α → ⟦ α ⟧ → SideEffect
   emit : ⟦ Int ⟧ → SideEffect
+  terminated : SideEffect
 
 data Label : Set where
   τ : Label
@@ -63,7 +64,7 @@ labels-of : ∀ { R A } → Reduction R A → Labels
 labels-of [] = []
 labels-of (_∷_ {α = α} h t) = α ∷ ♯ (labels-of (♭ t))
 
---{-# NON_TERMINATING #-} -- May have no side-effects, forever...
+{-# NON_TERMINATING #-} -- May have no side-effects, forever...
 labels-to-effects : ∀ (l : Labels) → SideEffects
 labels-to-effects [] = []
 labels-to-effects (τ ∷ t) = labels-to-effects (♭ t)
@@ -158,7 +159,8 @@ record Semantics : Set₁ where
     ↝-decl : ∀ { E k α } { f : Ref α → Statement }
       → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E ~[ τ ]↝ 𝒮 (f x) k (x , E))
     ↝-nop : ∀ { E k } { s : Statement } → 𝒮 nop (s then k) E ~[ τ ]↝ 𝒮 s k E
-    ↝-stuck : ∀ { E } → ¬ ∃[ S' ] ∃[ e ] (𝒮 nop stop E ~[ e ]↝ S')
+    ↝-stuck : ∀ { E } → 𝒮 nop stop E ~[ terminated ↗ ]↝ Ω
+    ↝-Ω : ∀ { S' e } → ¬ (Ω ~[ e ]↝ S')
     ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
       → 𝒮 (for l to u then f) k E
         ~[ τ ]↝ 𝒮 (if (l < u) then (
@@ -170,7 +172,13 @@ record Semantics : Set₁ where
     ↝-putchar : ∀ { E k } { e : Expr Int } { v : ℤ.ℤ }
       → E ⊢ e ⇒ v → 𝒮 (putchar e) k E ~[ emit v ↗ ]↝ 𝒮 nop k E
     ↝-det : ∀ { S S₁ S₂ e f } → S ~[ e ]↝ S₁ → S ~[ f ]↝ S₂ → e ≡ f × S₁ ≡ S₂
-    ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] (𝒮 x k E ~[ τ ]↝ S'))
+    ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S'))
+
+  labels : State → Labels
+  labels X = labels-of (reduce step X)
+
+  effects : State → SideEffects
+  effects X = effects-of (reduce step X)
 
   infix 0 _≅ₛ_
   _≅ₛ_ : Rel State Level.zero
@@ -195,8 +203,9 @@ module _ ⦃ _ : Semantics ⦄ where
   Stuck : State → Set
   Stuck S = ∀ S' e → ¬ (S ~[ e ]↝ S')
 
-  Terminating : State → Set
-  Terminating S = ∃[ S' ] ∃[ es ] (S ~[ fromList es ]↝* S' × Stuck S')
+  data Terminating (X : State) : Set where
+    [_] : Stuck X → Terminating X
+    _∷_ : ∀ { e Y } → X ~[ e ]↝ Y → Terminating Y → Terminating X
 
   -- EXPRESSION EQUIVALENCE
 
@@ -229,26 +238,24 @@ module _ ⦃ _ : Semantics ⦄ where
   ↝⁺-to-↝* {es = _ ∷ _} (X , A↝X , X↝*B) = A↝X ◅ ♯ X↝*B
 
   ↝̸-transᵇ : ∀ { S S' : State } { e }
-    → S ~[ fromList e ]↝* S' → Terminating S' → Terminating S
-  ↝̸-transᵇ {e = L.[]} S↝*S' (_ , f , S'↝*X , X↝̸) = _ , f , (S↝*S' ◅◅ S'↝*X) , X↝̸
-  ↝̸-transᵇ {e = e@(h L.∷ t)} (S↝Y ◅ Y↝*S') (_ , f , S'↝*X , X↝̸)
-    with ↝̸-transᵇ (♭ Y↝*S') (_ , f , S'↝*X , X↝̸)
-  ... | (_ , g , Y↝*A , A↝̸) = _ , h L.∷ g , (S↝Y ◅ ♯ Y↝*A) , A↝̸
+    → S ~[ e ]↝* S' → Finite e → Terminating S' → Terminating S
+  ↝̸-transᵇ ε _ S'↝ = S'↝
+  ↝̸-transᵇ (S↝X ◅ X↝*S') (_ ∷ p) S'↝ = S↝X ∷ ↝̸-transᵇ (♭ X↝*S') p S'↝
 
   ↝̸-transᶠ : ∀ { S S' : State } { e }
-    → S ~[ fromList e ]↝* S' → Terminating S → Terminating S'
-  ↝̸-transᶠ {e = L.[]} ε (_ , _ , S↝*X , X↝̸) = _ , _ , S↝*X , X↝̸
-  ↝̸-transᶠ {e = _ L.∷ _} (S↝Y ◅ _) (_ , L.[] , ε , X↝̸) = ⊥-elim (X↝̸ _ _ S↝Y)
-  ↝̸-transᶠ {e = _ L.∷ _} (S↝Y ◅ Y↝*S') (_ , _ L.∷ t , (S↝Z ◅ Z↝*X) , X↝̸)
-    rewrite proj₂ (↝-det S↝Y S↝Z) = ↝̸-transᶠ (♭ Y↝*S') (_ , t , (♭ Z↝*X) , X↝̸)
+    → S ~[ e ]↝* S' → Finite e → Terminating S → Terminating S'
+  ↝̸-transᶠ ε _ S↝ = S↝
+  ↝̸-transᶠ (S↝X ◅ X↝*S') (_ ∷ p) ([ S↝̸ ]) = ⊥-elim (S↝̸ _ _ S↝X)
+  ↝̸-transᶠ (S↝X ◅ X↝*S') (_ ∷ p) (S↝Y ∷ Y↝)
+    rewrite proj₂ (↝-det S↝X S↝Y) = ↝̸-transᶠ (♭ X↝*S') p Y↝
 
   ↝ω-transᵇ : ∀ { X Y : State } { e }
-    → X ~[ fromList e ]↝* Y → ¬ Terminating Y → ¬ Terminating X
-  ↝ω-transᵇ X↝*Y Y↝ω X↝̸ = Y↝ω (↝̸-transᶠ X↝*Y X↝̸)
+    → X ~[ e ]↝* Y → Finite e → ¬ Terminating Y → ¬ Terminating X
+  ↝ω-transᵇ X↝*Y p Y↝ω X↝̸ = Y↝ω (↝̸-transᶠ X↝*Y p X↝̸)
 
   ↝ω-transᶠ : ∀ { X Y : State } { e }
-    → X ~[ fromList e ]↝* Y → ¬ Terminating X → ¬ Terminating Y
-  ↝ω-transᶠ X↝*Y X↝ω Y↝̸ = X↝ω (↝̸-transᵇ X↝*Y Y↝̸)
+    → X ~[ e ]↝* Y → Finite e → ¬ Terminating X → ¬ Terminating Y
+  ↝ω-transᶠ X↝*Y p X↝ω Y↝̸ = X↝ω (↝̸-transᵇ X↝*Y p Y↝̸)
 
   {-# NON_TERMINATING #-} -- Either reduction could be infinite
   ↝*-det : ∀ { S S₁ S₂ x y }
@@ -279,10 +286,12 @@ module _ ⦃ _ : Semantics ⦄ where
   ≅ₛ-equiv : IsEquivalence _≅ₛ_
   ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
 
+  reduce-[] : ∀ { A : State } → labels A ≈ [] → Stuck A
+  reduce-[] r = {!r!}
+
   ↝⇒≅ₛ : ∀ { A B } → A ~[ τ ]↝ B → A ≅ₛ B
   ↝⇒≅ₛ {A} {B} A↝B with reduce step A | reduce step B
-  ... | [] | [] = {!Setoid.refl (Colist.setoid _)!}
-  ... | [] | y ∷ ys = {!reduce !}
+  ... | [] | _ = {!A↝B!}
   ... | x ∷ xs | [] = {!!}
   ... | x ∷ xs | y ∷ ys = {!!}
 

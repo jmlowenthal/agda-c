@@ -68,4 +68,5 @@ data Continuation : Set where
   _then_ : Statement → Continuation → Continuation
 
 data State : Set where
+  Ω : State
   𝒮 : Statement → Continuation → Env → State
