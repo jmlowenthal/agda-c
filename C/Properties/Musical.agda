@@ -20,6 +20,7 @@ import Data.Nat as ℕ
 import Data.Bool as 𝔹
 import Data.List as L
 import Codata.Musical.Conat as Coℕ
+import Relation.Binary.Reasoning.Setoid as SReason
 
 open C ⦃ ... ⦄
 
@@ -38,28 +39,20 @@ data Label : Set where
   τ : Label
   _↗ : SideEffect → Label
 
-data Reduction (_~[_]↝_ : State → Label → State → Set) (A : State) : Set where
-  [] : Reduction _~[_]↝_ A
-  _∷_ : ∀ { B α } → A ~[ α ]↝ B → ∞ (Reduction _~[_]↝_ B) → Reduction _~[_]↝_ A
-
-reduce : ∀ (step : State → Maybe (Label × State)) X
-  → Reduction (λ A e B → step A ≡ just (e , B)) X
-reduce step X = helper (λ A e B → step A ≡ just (e , B)) step X (λ A B e → id)
-  where
-    helper : ∀ _~[_]↝_ (step : State → Maybe (Label × State)) X
-      → (∀ X Y e → step X ≡ just (e , Y) → (X ~[ e ]↝ Y))
-      → Reduction _~[_]↝_ X
-    helper _~[_]↝_ step X p
-      with step X | p X
-    ... | nothing | _ = []
-    ... | just (l , S) | f = f S l refl ∷ ♯ (helper _~[_]↝_ step S p)
+data Reduction (_~[_]↝_ : State → Label → State → Set) : (A : State) → Set where
+  [] : Reduction _~[_]↝_ Ω
+  _∷_ : ∀ { A B α } → A ~[ α ]↝ B → ∞ (Reduction _~[_]↝_ B) → Reduction _~[_]↝_ A
 
 SideEffects : Set
 SideEffects = Colist SideEffect
 
 Labels : Set
 Labels = Colist Label
-    
+
+τs : ℕ.ℕ → Labels
+τs ℕ.zero = []
+τs (ℕ.suc n) = τ ∷ ♯ τs n
+
 labels-of : ∀ { R A } → Reduction R A → Labels
 labels-of [] = []
 labels-of (_∷_ {α = α} h t) = α ∷ ♯ (labels-of (♭ t))
@@ -70,6 +63,10 @@ labels-to-effects [] = []
 labels-to-effects (τ ∷ t) = labels-to-effects (♭ t)
 labels-to-effects ((x ↗) ∷ t) = x ∷ ♯ (labels-to-effects (♭ t))
 
+postulate effects-[] : labels-to-effects [] ≈ []
+postulate effects-τ : ∀ { t } → labels-to-effects (τ ∷ t) ≈ labels-to-effects (♭ t)
+postulate effects-det : ∀ { a b } → a ≈ b → labels-to-effects a ≈ labels-to-effects b
+  
 effects-of : ∀ { R A } → Reduction R A → SideEffects
 effects-of r = labels-to-effects (labels-of r)
 
@@ -82,11 +79,6 @@ _◅◅_ : ∀ { R X Y Z e f } → SmallStep* R X Y e → SmallStep* R Y Z f →
 ε ◅◅ B = B
 (h ◅ t) ◅◅ B = h ◅ ♯ (♭ t ◅◅ B)
 
-++-fromList : ∀ {l} {A : Set l} (a b : L.List A)
-  → fromList (a L.++ b) ≈ (fromList a) ++ (fromList b)
-++-fromList L.[] b = Setoid.refl (Colist.setoid _)
-++-fromList (h L.∷ t) b = h ∷ ♯ ++-fromList t b
-
 SmallStep⁺ : ∀ (_~[_]↝_ : State → Label → State → Set) → State → State → Labels → Set
 SmallStep⁺ _~[_]↝_ X Y [] = ⊥
 SmallStep⁺ _~[_]↝_ X Y (e ∷ es) = ∃[ X' ] (X ~[ e ]↝ X' × SmallStep* _~[_]↝_ X' Y (♭ es))
@@ -96,22 +88,10 @@ Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
 
 record Semantics : Set₁ where
   field
-    eval : ∀ { α } → Env → Expr α → ⟦ α ⟧
-    step : State → Maybe (Label × State)
+    _⊢_⇒_ : ∀ { α } → Env → Expr α → ⟦ α ⟧ → Set
+    _~[_]↝_ : State → Label → State → Set
+    reduce : ∀ X → Reduction _~[_]↝_ X
 
-  _⊢_⇒_ : ∀ { α } → Env → Expr α → ⟦ α ⟧ → Set
-  E ⊢ e ⇒ v = (eval E e) ≡ v
-
-  _~[_]↝_ : State → Label → State → Set
-  X ~[ e ]↝ Y = (step X) ≡ just (e , Y)
-
-  _~[_]↝*_ : State → Labels → State → Set
-  X ~[ e ]↝* Y = SmallStep* _~[_]↝_ X Y e
-  
-  _~[_]↝⁺_ : State → Labels → State → Set
-  X ~[ e ]↝⁺ Y = SmallStep⁺ _~[_]↝_ X Y e
-
-  field
     ⊢-total : ∀ { α E } { e : Expr α } → ∃[ v ] (E ⊢ e ⇒ v)
     ⊢-det : ∀ { α E } { e : Expr α } { v w : ⟦ α ⟧ } → E ⊢ e ⇒ v → E ⊢ e ⇒ w → v ≡ w 
     ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
@@ -175,14 +155,14 @@ record Semantics : Set₁ where
     ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S'))
 
   labels : State → Labels
-  labels X = labels-of (reduce step X)
+  labels X = labels-of (reduce X)
 
   effects : State → SideEffects
-  effects X = effects-of (reduce step X)
+  effects X = effects-of (reduce X)
 
   infix 0 _≅ₛ_
   _≅ₛ_ : Rel State Level.zero
-  X ≅ₛ Y = (effects-of (reduce step X)) ≈ (effects-of (reduce step Y))
+  X ≅ₛ Y = (effects-of (reduce X)) ≈ (effects-of (reduce Y))
 
   field
     ≅ₛ-subst :
@@ -225,6 +205,12 @@ module _ ⦃ _ : Semantics ⦄ where
 
 
   -- REDUCTION LEMMAS
+    
+  _~[_]↝*_ : State → Labels → State → Set
+  X ~[ e ]↝* Y = SmallStep* _~[_]↝_ X Y e
+  
+  _~[_]↝⁺_ : State → Labels → State → Set
+  X ~[ e ]↝⁺ Y = SmallStep⁺ _~[_]↝_ X Y e
 
   ↝*-trans : ∀ { e f } → Trans (_~[ e ]↝*_) (_~[ f ]↝*_) (_~[ e ++ f ]↝*_)
   ↝*-trans ε j↝*k = j↝*k
@@ -274,27 +260,46 @@ module _ ⦃ _ : Semantics ⦄ where
   ↝*-det' {x = x ∷ xs} {x₁ ∷ xs₁} (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
     rewrite proj₂ (↝-det S↝X S↝Y) = ↝*-det' (♭ X↝*S₁) (♭ Y↝*S₂)
 
+  Colist-refl : ∀ {a} {A : Set a} → Reflexive (_≈_ {a} {A})
+  Colist-refl = Setoid.refl (Colist.setoid _)
+
+  Colist-sym : ∀ {a} {A : Set a} → Symmetric (_≈_ {a} {A})
+  Colist-sym = Setoid.sym (Colist.setoid _)
+
+  Colist-trans : ∀ {a} {A : Set a} → Transitive (_≈_ {a} {A})
+  Colist-trans = Setoid.trans (Colist.setoid _)
+
   ≅ₛ-refl : Reflexive _≅ₛ_
-  ≅ₛ-refl = Setoid.refl (Colist.setoid _)
+  ≅ₛ-refl = Colist-refl
 
   ≅ₛ-sym : Symmetric _≅ₛ_
-  ≅ₛ-sym = Setoid.sym (Colist.setoid _)
+  ≅ₛ-sym = Colist-sym
 
   ≅ₛ-trans : Transitive _≅ₛ_
-  ≅ₛ-trans = Setoid.trans (Colist.setoid _)
+  ≅ₛ-trans = Colist-trans
 
   ≅ₛ-equiv : IsEquivalence _≅ₛ_
   ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
 
-  reduce-[] : ∀ { A : State } → labels A ≈ [] → Stuck A
-  reduce-[] r = {!r!}
+  reduce-[] : ∀ { A } → labels A ≈ [] → Stuck A
+  reduce-[] {A} r with reduce A
+  reduce-[] {A} [] | [] = λ _ _ → ↝-Ω
+
+  reduce-det : ∀ { A } (x y : Reduction _~[_]↝_ A) → labels-of x ≈ labels-of y
+  reduce-det [] [] = []
+  reduce-det [] (Ω↝Y ∷ _) = ⊥-elim (↝-Ω Ω↝Y)
+  reduce-det (Ω↝X ∷ _) [] = ⊥-elim (↝-Ω Ω↝X)
+  reduce-det (A↝X ∷ X↝) (A↝Y ∷ Y↝) with (↝-det A↝X A↝Y)
+  ... | refl , refl = _ ∷ ♯ reduce-det (♭ X↝) (♭ Y↝)
 
   ↝⇒≅ₛ : ∀ { A B } → A ~[ τ ]↝ B → A ≅ₛ B
-  ↝⇒≅ₛ {A} {B} A↝B with reduce step A | reduce step B
-  ... | [] | _ = {!A↝B!}
-  ... | x ∷ xs | [] = {!!}
-  ... | x ∷ xs | y ∷ ys = {!!}
+  ↝⇒≅ₛ {A} {B} A↝B with reduce A
+  ... | [] = ⊥-elim (↝-Ω A↝B)
+  ... | A↝C ∷ C↝
+    with ↝-det A↝B A↝C
+  ... | refl , refl = Colist-trans effects-τ (effects-det (reduce-det (♭ C↝) (reduce B)))
 
-  ↝*⇒≅ₛ : ∀ { A B n } → A ~[ replicate n τ ]↝* B → A ≅ₛ B
-  ↝*⇒≅ₛ {n = Coℕ.zero} ε = ≅ₛ-refl
-  ↝*⇒≅ₛ {n = Coℕ.suc n} (A↝X ◅ X↝*B) = ≅ₛ-trans (↝⇒≅ₛ A↝X) (↝*⇒≅ₛ (♭ X↝*B))
+  ↝*⇒≅ₛ : ∀ { A B n } → A ~[ fromList (L.replicate n τ) ]↝* B → A ≅ₛ B
+  ↝*⇒≅ₛ {n = ℕ.zero} ε = ≅ₛ-refl
+  ↝*⇒≅ₛ {n = ℕ.suc n} (A↝Y ◅ Y↝*B) = ≅ₛ-trans (↝⇒≅ₛ A↝Y) (↝*⇒≅ₛ {n = n} (♭ Y↝*B))
+
