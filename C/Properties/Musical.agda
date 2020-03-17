@@ -62,13 +62,40 @@ labels-to-effects : ∀ (l : Labels) → SideEffects
 labels-to-effects [] = []
 labels-to-effects (τ ∷ t) = labels-to-effects (♭ t)
 labels-to-effects ((x ↗) ∷ t) = x ∷ ♯ (labels-to-effects (♭ t))
-
-postulate effects-[] : labels-to-effects [] ≈ []
-postulate effects-τ : ∀ { t } → labels-to-effects (τ ∷ t) ≈ labels-to-effects (♭ t)
-postulate effects-det : ∀ { a b } → a ≈ b → labels-to-effects a ≈ labels-to-effects b
   
 effects-of : ∀ { R A } → Reduction R A → SideEffects
 effects-of r = labels-to-effects (labels-of r)
+
+data _[≈]_ : Labels → Labels → Set where
+  [] : [] [≈] []
+  _∷_ : ∀ x { xs ys } → ∞ ((♭ xs) [≈] (♭ ys)) → (x ∷ xs) [≈] (x ∷ ys)
+  left : ∀ { xs ys } → ∞ ((♭ xs) [≈] ys) → (τ ∷ xs) [≈] ys
+  right : ∀ { xs ys } → ∞ (xs [≈] (♭ ys)) → xs [≈] (τ ∷ ys)
+
+[≈]-refl : Reflexive _[≈]_
+[≈]-refl {[]} = []
+[≈]-refl {_ ∷ _} = _ ∷ ♯ [≈]-refl
+
+[≈]-reflexive : ∀ { A B } → A ≈ B → A [≈] B
+[≈]-reflexive [] = []
+[≈]-reflexive (x ∷ xs≈) = x ∷ ♯ [≈]-reflexive (♭ xs≈)
+
+[≈]-sym : Symmetric _[≈]_
+[≈]-sym [] = []
+[≈]-sym (_ ∷ xs) = _ ∷ ♯ [≈]-sym (♭ xs)
+[≈]-sym (left x) = right (♯ [≈]-sym (♭ x))
+[≈]-sym (right x) = left (♯ [≈]-sym (♭ x))
+
+{-# NON_TERMINATING #-}
+[≈]-trans : ∀ { i j k } → i [≈] j → j [≈] k → i [≈] k
+[≈]-trans [] p = p
+[≈]-trans (x ∷ xs) (.x ∷ ys) = _ ∷ ♯ [≈]-trans (♭ xs) (♭ ys)
+[≈]-trans (.τ ∷ xs) (left p) = left (♯ [≈]-trans (♭ xs) (♭ p))
+[≈]-trans (x ∷ xs) (right p) = right (♯ [≈]-trans (x ∷ xs) (♭ p))
+[≈]-trans (left p) j~k = left (♯ [≈]-trans (♭ p) j~k)
+[≈]-trans (right p) (.τ ∷ xs) = right (♯ [≈]-trans (♭ p) (♭ xs))
+[≈]-trans (right p) (left q) = [≈]-trans (♭ p) (♭ q)
+[≈]-trans (right p) (right q) = right (♯ [≈]-trans (right p) (♭ q))
 
 data SmallStep* (_~[_]↝_ : State → Label → State → Set) : State → State → Labels → Set where
   ε : ∀ { X } → SmallStep* _~[_]↝_ X X []
@@ -162,7 +189,7 @@ record Semantics : Set₁ where
 
   infix 0 _≅ₛ_
   _≅ₛ_ : Rel State Level.zero
-  X ≅ₛ Y = (effects-of (reduce X)) ≈ (effects-of (reduce Y))
+  X ≅ₛ Y = labels X [≈] labels Y
 
   field
     ≅ₛ-subst :
@@ -270,13 +297,13 @@ module _ ⦃ _ : Semantics ⦄ where
   Colist-trans = Setoid.trans (Colist.setoid _)
 
   ≅ₛ-refl : Reflexive _≅ₛ_
-  ≅ₛ-refl = Colist-refl
+  ≅ₛ-refl = [≈]-refl
 
   ≅ₛ-sym : Symmetric _≅ₛ_
-  ≅ₛ-sym = Colist-sym
+  ≅ₛ-sym = [≈]-sym
 
   ≅ₛ-trans : Transitive _≅ₛ_
-  ≅ₛ-trans = Colist-trans
+  ≅ₛ-trans = [≈]-trans
 
   ≅ₛ-equiv : IsEquivalence _≅ₛ_
   ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
@@ -297,7 +324,7 @@ module _ ⦃ _ : Semantics ⦄ where
   ... | [] = ⊥-elim (↝-Ω A↝B)
   ... | A↝C ∷ C↝
     with ↝-det A↝B A↝C
-  ... | refl , refl = Colist-trans effects-τ (effects-det (reduce-det (♭ C↝) (reduce B)))
+  ... | refl , refl = left (♯ [≈]-reflexive (reduce-det (♭ C↝) (reduce B)))
 
   ↝*⇒≅ₛ : ∀ { A B n } → A ~[ fromList (L.replicate n τ) ]↝* B → A ≅ₛ B
   ↝*⇒≅ₛ {n = ℕ.zero} ε = ≅ₛ-refl
