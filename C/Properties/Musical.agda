@@ -66,12 +66,16 @@ labels-to-effects ((x ↗) ∷ t) = x ∷ ♯ (labels-to-effects (♭ t))
 effects-of : ∀ { R A } → Reduction R A → SideEffects
 effects-of r = labels-to-effects (labels-of r)
 
+data Ignorable : Label → Set where
+  ignore-τ : Ignorable τ
+  ignore-↦ : ∀ { α } { x : Ref α } { v : ⟦ α ⟧ } → Ignorable ((x ↦ v) ↗)
+
 infix 0 _[≈]_
 data _[≈]_ : Labels → Labels → Set where
   [] : [] [≈] []
   _∷_ : ∀ x { xs ys } → ∞ ((♭ xs) [≈] (♭ ys)) → (x ∷ xs) [≈] (x ∷ ys)
-  left : ∀ { xs ys } → ∞ ((♭ xs) [≈] ys) → (τ ∷ xs) [≈] ys
-  right : ∀ { xs ys } → ∞ (xs [≈] (♭ ys)) → xs [≈] (τ ∷ ys)
+  left : ∀ { x xs ys } → Ignorable x → ∞ ((♭ xs) [≈] ys) → (x ∷ xs) [≈] ys
+  right : ∀ { x xs ys } → Ignorable x → ∞ (xs [≈] (♭ ys)) → xs [≈] (x ∷ ys)
 
 [≈]-refl : Reflexive _[≈]_
 [≈]-refl {[]} = []
@@ -84,19 +88,19 @@ data _[≈]_ : Labels → Labels → Set where
 [≈]-sym : Symmetric _[≈]_
 [≈]-sym [] = []
 [≈]-sym (_ ∷ xs) = _ ∷ ♯ [≈]-sym (♭ xs)
-[≈]-sym (left x) = right (♯ [≈]-sym (♭ x))
-[≈]-sym (right x) = left (♯ [≈]-sym (♭ x))
+[≈]-sym (left p x) = right p (♯ [≈]-sym (♭ x))
+[≈]-sym (right p x) = left p (♯ [≈]-sym (♭ x))
 
 {-# NON_TERMINATING #-}
 [≈]-trans : ∀ { i j k } → i [≈] j → j [≈] k → i [≈] k
 [≈]-trans [] p = p
 [≈]-trans (x ∷ xs) (.x ∷ ys) = _ ∷ ♯ [≈]-trans (♭ xs) (♭ ys)
-[≈]-trans (.τ ∷ xs) (left p) = left (♯ [≈]-trans (♭ xs) (♭ p))
-[≈]-trans (x ∷ xs) (right p) = right (♯ [≈]-trans (x ∷ xs) (♭ p))
-[≈]-trans (left p) j~k = left (♯ [≈]-trans (♭ p) j~k)
-[≈]-trans (right p) (.τ ∷ xs) = right (♯ [≈]-trans (♭ p) (♭ xs))
-[≈]-trans (right p) (left q) = [≈]-trans (♭ p) (♭ q)
-[≈]-trans (right p) (right q) = right (♯ [≈]-trans (right p) (♭ q))
+[≈]-trans (x ∷ xs) (left i p) = left i (♯ [≈]-trans (♭ xs) (♭ p))
+[≈]-trans (x ∷ xs) (right i p) = right i (♯ [≈]-trans (x ∷ xs) (♭ p))
+[≈]-trans (left i p) j~k = left i (♯ [≈]-trans (♭ p) j~k)
+[≈]-trans (right i p) (_ ∷ xs) = right i (♯ [≈]-trans (♭ p) (♭ xs))
+[≈]-trans (right _ p) (left _ q) = [≈]-trans (♭ p) (♭ q)
+[≈]-trans (right i p) (right j q) = right j (♯ [≈]-trans (right i p) (♭ q))
 
 [≈]-setoid : Setoid _ _
 [≈]-setoid = record
@@ -337,7 +341,7 @@ module _ ⦃ _ : Semantics ⦄ where
   ... | [] = ⊥-elim (↝-Ω A↝B)
   ... | A↝C ∷ C↝
     with ↝-det A↝B A↝C
-  ... | refl , refl = left (♯ [≈]-reflexive (reduce-det (♭ C↝) (reduce B)))
+  ... | refl , refl = left ignore-τ (♯ [≈]-reflexive (reduce-det (♭ C↝) (reduce B)))
 
   ↝*⇒≅ₛ : ∀ { A B n } → A ~[ fromList (L.replicate n τ) ]↝* B → A ≅ₛ B
   ↝*⇒≅ₛ {n = ℕ.zero} ε = ≅ₛ-refl

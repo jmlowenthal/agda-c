@@ -138,8 +138,9 @@ _≅ₚ_ {ℕ.suc n} {_ , v} x y = ∀ { r } → _≅ₚ_ (x r) (y r)
   isEquivalence = ≅ₚ-equiv }
 
 import Relation.Binary.Reasoning.Setoid as Reasoning
-module ≅R = Reasoning (≅ₚ-setoid {0})
+module ≅-Reasoning = Reasoning (≅ₚ-setoid {0})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_)
+module ≅R = ≅-Reasoning
 open ≅R
 module ≈R = Reasoning [≈]-setoid
 open ≈R
@@ -164,12 +165,22 @@ postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → S
 β-while = ↝⇒≅ₛ ↝-while
 
 ≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement } { k E }
-  → labels (𝒮 (x ≔ e ； f (★ x)) k E) [≈] ((x ↦ (proj₁ (⊢-total {α} {E} {e}))) ↗) ∷ ♯ labels (𝒮 (f e) k E)
+  → labels (𝒮 (x ≔ e ； f (★ x)) k E) [≈] labels (𝒮 (f e) k E)
 ≔-subst {α} {x} {e} {f} {k} {E} =
   let v , ⇒v = ⊢-total {α} {E} {e} in
-    [≈]-trans
-      ([≈]-reflexive (reduce-det _ (↝-seq ∷ ♯ (↝-assignment ⇒v ∷ ♯ (↝-nop ∷ ♯ reduce _)))))
-      (left (♯ (_ ∷ ♯ (left (♯ ≅ₛ-subst (deref x↦v∈x↦v,E) ⇒v refl)))))
+    ≈R.begin
+      labels (𝒮 (x ≔ e ； f (★ x)) k E)
+      ≈⟨ ↝⇒≅ₛ ↝-seq ⟩
+      labels (𝒮 (x ≔ e) ((f (★ x)) ∷ k) E)
+      ≈⟨ [≈]-reflexive (reduce-det _ (↝-assignment ⇒v ∷ ♯ reduce _)) ⟩
+      labels-of (↝-assignment ⇒v ∷ _) 
+      ≈⟨ left ignore-↦ (♯ [≈]-refl) ⟩
+      labels (𝒮 nop ((f (★ x)) ∷ k) (x Env.↦ v , E))
+      ≈⟨ ↝⇒≅ₛ ↝-nop ⟩
+      labels (𝒮 (f (★ x)) k (x Env.↦ v , E))
+      ≈⟨ ≅ₛ-subst (deref x↦v∈x↦v,E) ⇒v refl ⟩
+      labels (𝒮 (f e) k E)
+    ≈R.∎
 
 decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
 decl-elim {α} {f} = ≅ₛ-decl
