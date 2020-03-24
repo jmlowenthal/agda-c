@@ -63,9 +63,7 @@ _⊕_ : Env → Env → Env
 (x , E₁) ⊕ E₂ = x , (E₁ ⊕ E₂)
 ε ⊕ E₂ = E₂
 
-data Continuation : Set where
-  stop : Continuation
-  _then_ : Statement → Continuation → Continuation
+Continuation = List Statement
 
 data State : Set where
   Ω : State

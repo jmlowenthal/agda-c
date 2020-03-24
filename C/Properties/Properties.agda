@@ -2,12 +2,13 @@ open import Algebra.FunctionProperties
 open import C.Base
 open import C.Properties.Musical
 open import C.Properties.State
-open import Codata.Musical.Notation
 open import Codata.Musical.Colist as Colist
+open import Codata.Musical.Notation
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Data.Empty
 open import Data.Integer as ℤ using (+_)
 open import Data.Integer.Properties as ℤₚ using ()
+open import Data.List as L using (List ; _∷_ ; [])
 open import Data.Nat as ℕ using (ℕ)
 open import Data.Product using (∃ ; _,_ ; ∃-syntax ; proj₁ ; proj₂)
 open import Data.Sum
@@ -140,21 +141,10 @@ import Relation.Binary.Reasoning.Setoid as Reasoning
 module ≅R = Reasoning (≅ₚ-setoid {0})
   renaming (_≈⟨_⟩_ to _≅⟨_⟩_ ; _≈˘⟨_⟩_ to _≅˘⟨_⟩_)
 open ≅R
-module ≈R = ≈-Reasoning
+module ≈R = Reasoning [≈]-setoid
 open ≈R
 
 postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → Statement) (x y : v ⇉ Statement) → x ≅ₚ y → f x ≅ₚ f y
--- ≅ₚ-cong {v = []} {[]} f x y x≅y {k} {E} =
---   ≅ₛ-cong (λ { (𝒮 s k E) → 𝒮 (f s) k E }) (𝒮 x k E) (𝒮 y k E) x≅y
--- ≅ₚ-cong {v = α ∷ αs} {[]} f x y x≅y {k} {E} =
---   let g : (r : α) → f (λ _ → x r) ≅ₚ f (λ _ → y r)
---       g r = ≅ₚ-cong {v = αs} {[]} (λ v → f (λ _ → v)) _ _ (x≅y {r})
---   in
---     {!g ? {k} {E}!}
--- ≅ₚ-cong {v = v} {β ∷ βs} f x y x≅y {r} =
---   ≅ₚ-cong {v = v} {βs} (λ c → f c r) _ _ x≅y
-
-postulate ；-assoc : Associative _≅ₚ_ _；_
 
 β-if-true : ∀ { x y : Statement }
   → (if true then x else y) ≅ₚ x
@@ -173,85 +163,53 @@ postulate ；-assoc : Associative _≅ₚ_ _；_
   → while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
 β-while = ↝⇒≅ₛ ↝-while
 
-≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
-  → (x ≔ e ； f (★ x)) ≅ₚ (f e)
--- ≔-subst {α} {x} {e} {f} {k} {E}
---   with ⊢-total {α} {E} {e}
--- ... | v , ⇒v
---     with ≅ₛ-subst {f = f} (deref {x Env.↦ v , E} {α} {x} x↦v∈x↦v,E) ⇒v refl
--- ...   | inj₁ (A , f[★x]↝A , f[e]↝A) =
---         let reduction = ↝-seq ◅ ↝-assignment ⇒v ⟨ ? ⟩ ◅ ↝-nop ⟨ ? ⟩ ◅ ε ⟨ ? ⟩ in
---           inj₁ (A , reduction ◅◅ f[★x]↝A , f[e]↝A)
--- ...   | inj₂ (f[★x]↝ω , f[e]↝ω) =
---         let reduction = ↝-seq ◅ ↝-assignment ⇒v ⟨ ? ⟩ ◅ ↝-nop ⟨ ? ⟩ ◅ ε ⟨ ? ⟩ in
---           inj₂ (↝ω-transᵇ reduction f[★x]↝ω , f[e]↝ω)
+≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement } { k E }
+  → labels (𝒮 (x ≔ e ； f (★ x)) k E) [≈] ((x ↦ (proj₁ (⊢-total {α} {E} {e}))) ↗) ∷ ♯ labels (𝒮 (f e) k E)
+≔-subst {α} {x} {e} {f} {k} {E} =
+  let v , ⇒v = ⊢-total {α} {E} {e} in
+    [≈]-trans
+      ([≈]-reflexive (reduce-det _ (↝-seq ∷ ♯ (↝-assignment ⇒v ∷ ♯ (↝-nop ∷ ♯ reduce _)))))
+      (left (♯ (_ ∷ ♯ (left (♯ ≅ₛ-subst (deref x↦v∈x↦v,E) ⇒v refl)))))
 
 decl-elim : ∀ { α } { f : Statement } → (decl α λ x → f) ≅ₚ f
 decl-elim {α} {f} = ≅ₛ-decl
 
-effects-of (reduce (𝒮 s k E)) ≈ effects-of (𝒮 s stop E) ++ effect-of (k)
-
-nested-while-loop : ∀ { s t : Statement }
-  → s ≅ₚ t → while true then s ≅ₚ while true then (while true then t)
-nested-while-loop {s} {t} s≅t {k} {E} =
+nested-while-loop : ∀ { s : Statement }
+  → while true then s ≅ₚ while true then (while true then s)
+nested-while-loop {s} {k} {E} =
   ≈R.begin
-    effects-of (reduce (𝒮 (while true then s) k E))
-  ≈⟨ effects-det (reduce-det _ p) ⟩
-    effects-of p
-  ≈⟨ effects-τ ⟩ _
-  ≈⟨ effects-τ ⟩ _
-  ≈⟨ effects-τ ⟩
-    effects-of (reduce (𝒮 s ((while true then s) then k) E))
-  ≈⟨ s≅t ⟩
-    effects-of (reduce (𝒮 t ((while true then s) then k) E))
-  ≈⟨ {!nested-while-loop s≅t!} ⟩
-    effects-of (reduce (𝒮 t ((while true then t) then (while true then (while true then t)) then k) E))
-  ≈˘⟨ effects-τ ⟩ _
-  ≈˘⟨ effects-τ ⟩ _
-  ≈˘⟨ effects-τ ⟩ _
-  ≈˘⟨ effects-τ ⟩ _
-  ≈˘⟨ effects-τ ⟩ _
-  ≈˘⟨ effects-τ ⟩
-    effects-of q
-  ≈⟨ effects-det (reduce-det q _) ⟩
-    effects-of (reduce (𝒮 (while true then (while true then t)) k E))
+    labels (𝒮 (while true then s) k E)
+  ≈⟨ ↝*⇒≅ₛ (↝-while ◅ ♯ (↝-if-true true-eval ◅ ♯ (↝-seq ◅ ♯ ε))) ⟩
+    labels (𝒮 s ((while true then s) ∷ k) E)
+  ≈˘⟨ ↝⇒≅ₛ ↝-nop ⟩
+    labels (𝒮 nop (s ∷ (while true then s) ∷ k) E)
+  ≈⟨
+    cont-equiv
+      (≅ₛ-refl {𝒮 nop (s ∷ []) E})
+      (λ E' →
+        cont-equiv
+          (≈R.begin
+            labels (𝒮 nop ((while true then s) ∷ []) E')
+            ≈⟨ ↝⇒≅ₛ ↝-nop ⟩
+            labels (𝒮 (while true then s) [] E')
+            ≈⟨ ≅ₛ-while-true ⟩
+            labels (𝒮 (while true then s) ((while true then (while true then s)) ∷ []) E')
+            ≈˘⟨ ↝⇒≅ₛ ↝-nop ⟩
+            labels (𝒮 nop ((while true then s) ∷ (while true then (while true then s)) ∷ []) E')
+          ≈R.∎)
+          (λ E'' → ≅ₛ-refl {𝒮 nop k E''}))
+  ⟩
+    labels (𝒮 nop (s ∷ (while true then s) ∷ (while true then (while true then s)) ∷ k) E)
+  ≈⟨ ↝⇒≅ₛ ↝-nop ⟩
+    labels (𝒮 s ((while true then s) ∷ (while true then (while true then s)) ∷ k) E)
+  ≈˘⟨
+    ↝*⇒≅ₛ
+      (↝-while
+        ◅ ♯ (↝-if-true true-eval
+        ◅ ♯ (↝-seq
+        ◅ ♯ (↝-while
+        ◅ ♯ (↝-if-true true-eval
+        ◅ ♯ (↝-seq
+        ◅ ♯ ε)))))) ⟩
+    labels (𝒮 (while true then (while true then s)) k E)
   ≈R.∎
-  where
-    p : Reduction _~[_]↝_ (𝒮 (while true then s) k E)
-    p = ↝-while
-      ∷ ♯ (↝-if-true true-eval
-      ∷ ♯ (↝-seq
-      ∷ ♯ reduce _))
-    q : Reduction _~[_]↝_ (𝒮 (while true then (while true then t)) k E)
-    q = ↝-while
-      ∷ ♯ (↝-if-true true-eval
-      ∷ ♯ (↝-seq
-      ∷ ♯ (↝-while
-      ∷ ♯ (↝-if-true true-eval
-      ∷ ♯ (↝-seq ∷ ♯ reduce _)))))
-    a : effects-of p ≈ effects (𝒮 s ((while true then s) then k) E)
-    
--- nested-while-loop {s} {t} s≅t =
---   begin'
---     (while true then s)
---     ≅⟨ ≅ₚ-cong {0} (λ s → while true then s) s t s≅t ⟩
---     (while true then t)
---     ≅⟨ ↝⇒≅ₛ ↝-while ⟩
---     (if true then (t ； while true then t) else nop)
---     ≅⟨ β-if-true ⟩
---     (t ； while true then t)
---     ≅⟨ {!!} ⟩
---     ((t ； while true then t) ； while true then (while true then t))
---     ≅⟨ {!!} ⟩
---     (if true then (t ； while true then t) else nop ； while true then (while true then t))
---     ≅⟨ {!!} ⟩
---     (while true then t ； while true then (while true then t))
---     ≅˘⟨ β-if-true ⟩
---     (if true then (while true then t ； while true then (while true then t)) else nop)
---     ≅˘⟨ ↝⇒≅ₛ ↝-while ⟩
---     (while true then (while true then t))
---   ∎'
-
--- Need to ensure s and t don't affect e
-nested-while-loop' : ∀ { s t : Statement } { e : Expr Bool }
-  → s ≅ₚ t → while e then s ≅ₚ while e then (while e then t)

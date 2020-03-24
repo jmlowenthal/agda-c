@@ -51,13 +51,12 @@ record C : Set₁ where
   _←_ : ∀ { α } → Ref α → (Ref α → Statement) → Statement
   x ← e = e x 
 
-  infixr 0 _；_
-  infix 1 if_then_else_
-  infix 2 _≔_
-  infix 3 _⁇_∷_
-  infix 4 _/_
-  infix 5 _*_
-  infix 6 _+_
-  infix 7 _-_
-  infix 8 ★_ _||_ _&&_
-  infix 9 _[_]
+  infixr 1 _；_
+  infix 2 if_then_else_
+  infix 3 _≔_
+  infix 4 _⁇_∷_
+  infix 5 _/_
+  infix 6 _*_
+  infix 7 _+_
+  infix 8 _-_
+  infix 9 ★_ _||_ _&&_ _[_]

@@ -3,9 +3,10 @@ open import C.Base
 open import C.Properties.State
 open import Codata.Musical.Colist as Colist hiding ([_])
 open import Codata.Musical.Notation
+open import Data.Empty
+open import Data.List as L using (List ; [] ; _∷_)
 open import Data.Maybe
 open import Data.Product
-open import Data.Empty
 open import Data.Sum
 open import Function
 open import Relation.Binary
@@ -18,7 +19,6 @@ import Data.Integer as ℤ
 import Data.Integer.DivMod as ℤ÷
 import Data.Nat as ℕ
 import Data.Bool as 𝔹
-import Data.List as L
 import Codata.Musical.Conat as Coℕ
 import Relation.Binary.Reasoning.Setoid as SReason
 
@@ -66,6 +66,7 @@ labels-to-effects ((x ↗) ∷ t) = x ∷ ♯ (labels-to-effects (♭ t))
 effects-of : ∀ { R A } → Reduction R A → SideEffects
 effects-of r = labels-to-effects (labels-of r)
 
+infix 0 _[≈]_
 data _[≈]_ : Labels → Labels → Set where
   [] : [] [≈] []
   _∷_ : ∀ x { xs ys } → ∞ ((♭ xs) [≈] (♭ ys)) → (x ∷ xs) [≈] (x ∷ ys)
@@ -97,6 +98,16 @@ data _[≈]_ : Labels → Labels → Set where
 [≈]-trans (right p) (left q) = [≈]-trans (♭ p) (♭ q)
 [≈]-trans (right p) (right q) = right (♯ [≈]-trans (right p) (♭ q))
 
+[≈]-setoid : Setoid _ _
+[≈]-setoid = record
+  { Carrier = _
+  ; _≈_ = _[≈]_
+  ; isEquivalence = record
+    { refl = [≈]-refl
+    ; sym = [≈]-sym
+    ; trans = [≈]-trans } }
+
+infixr 4 _◅_
 data SmallStep* (_~[_]↝_ : State → Label → State → Set) : State → State → Labels → Set where
   ε : ∀ { X } → SmallStep* _~[_]↝_ X X []
   _◅_ : ∀ { X Y Z e es } → X ~[ e ]↝ Y → ∞ (SmallStep* _~[_]↝_ Y Z (♭ es))
@@ -162,11 +173,11 @@ record Semantics : Set₁ where
     ↝-assignment : ∀ { E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
       → E ⊢ e ⇒ v → 𝒮 (id ≔ e) k E ~[ (id ↦ v) ↗ ]↝ 𝒮 nop k (id Env.↦ v , E)
     ↝-seq : ∀ { E k } { s₁ s₂ : Statement }
-      → 𝒮 (s₁ ； s₂) k E ~[ τ ]↝ 𝒮 s₁ (s₂ then k) E
+      → 𝒮 (s₁ ； s₂) k E ~[ τ ]↝ 𝒮 s₁ (s₂ ∷ k) E
     ↝-decl : ∀ { E k α } { f : Ref α → Statement }
       → ∃ λ (x : Ref α) → (x ∉nv E) × (𝒮 (decl α f) k E ~[ τ ]↝ 𝒮 (f x) k (x , E))
-    ↝-nop : ∀ { E k } { s : Statement } → 𝒮 nop (s then k) E ~[ τ ]↝ 𝒮 s k E
-    ↝-stuck : ∀ { E } → 𝒮 nop stop E ~[ terminated ↗ ]↝ Ω
+    ↝-nop : ∀ { E k } { s : Statement } → 𝒮 nop (s ∷ k) E ~[ τ ]↝ 𝒮 s k E
+    ↝-stuck : ∀ { E } → 𝒮 nop [] E ~[ terminated ↗ ]↝ Ω
     ↝-Ω : ∀ { S' e } → ¬ (Ω ~[ e ]↝ S')
     ↝-for : ∀ { E k } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
       → 𝒮 (for l to u then f) k E
@@ -179,7 +190,9 @@ record Semantics : Set₁ where
     ↝-putchar : ∀ { E k } { e : Expr Int } { v : ℤ.ℤ }
       → E ⊢ e ⇒ v → 𝒮 (putchar e) k E ~[ emit v ↗ ]↝ 𝒮 nop k E
     ↝-det : ∀ { S S₁ S₂ e f } → S ~[ e ]↝ S₁ → S ~[ f ]↝ S₂ → e ≡ f × S₁ ≡ S₂
-    ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S'))
+    ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ []) ⊎ (∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S'))
+    ↝-irr-cont : ∀ { s s' k₁ k₂ E E' e }
+      → 𝒮 s k₁ E ~[ e ]↝ 𝒮 s' k₁ E' → 𝒮 s k₂ E ~[ e ]↝ 𝒮 s' k₂ E'
 
   labels : State → Labels
   labels X = labels-of (reduce X)
@@ -330,3 +343,12 @@ module _ ⦃ _ : Semantics ⦄ where
   ↝*⇒≅ₛ {n = ℕ.zero} ε = ≅ₛ-refl
   ↝*⇒≅ₛ {n = ℕ.suc n} (A↝Y ◅ Y↝*B) = ≅ₛ-trans (↝⇒≅ₛ A↝Y) (↝*⇒≅ₛ {n = n} (♭ Y↝*B))
 
+  postulate cont-equiv : ∀ { a b c d E } → labels (𝒮 nop a E) [≈] labels (𝒮 nop c E) → (∀ E' → labels (𝒮 nop b E') [≈] labels (𝒮 nop d E')) → labels (𝒮 nop (a L.++ b) E) [≈] labels (𝒮 nop (c L.++ d) E)
+
+  reduction-of : ∀ { A B e } → A ~[ e ]↝* B → Reduction _~[_]↝_ A
+  reduction-of {A} ε = reduce A
+  reduction-of (A↝X ◅ X↝*B) = A↝X ∷ ♯ reduction-of (♭ X↝*B)
+
+  postulate ↝*-irr-cont : ∀ { x y k k' E e } → 𝒮 x k E ~[ e ]↝* 𝒮 y k E → 𝒮 x k' E ~[ e ]↝* 𝒮 y k' E
+  postulate cont-comb : ∀ { s E E' e f k X } → 𝒮 s [] E ~[ e ]↝* 𝒮 nop [] E' → 𝒮 nop k E' ~[ f ]↝* X → 𝒮 s k E ~[ e ++ f ]↝* X
+  postulate ≅ₛ-while-true : ∀ { s : Statement } { k k' E } → 𝒮 (while true then s) k E ≅ₛ 𝒮 (while true then s) k' E
