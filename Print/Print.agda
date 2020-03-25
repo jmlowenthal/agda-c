@@ -6,11 +6,13 @@ open import Data.String
 open import Data.List using (List ; [] ; _∷_)
 open import Data.Product
 open import Function using (_∘_)
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
+
 import Data.Integer as ℤ
 import Data.Nat as ℕ
 import Data.Nat.Show as ℕs
-open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality
+import Data.Char as Char
 
 print-ctype : c_type → String
 print-ctype Int = "int"
@@ -39,6 +41,9 @@ print-expr (or x y) = "(" ++ (print-expr x) ++ " || " ++ (print-expr y) ++ ")"
 print-expr (and x y) = "(" ++ (print-expr x) ++ " && " ++ (print-expr y) ++ ")"
 print-expr (not x) = "(!" ++ (print-expr x) ++ ")"
 print-expr (deref {α} x) = print-ref {α} x
+print-expr (tenary c x y) =
+  "(" ++ print-expr c ++ " " ++ fromChar (Char.fromℕ 63) -- Question mark = 63
+    ++ " " ++ print-expr x ++ " : " ++ print-expr y ++ ")"
 
 print-statement : IStatement → String
 print-statement (ifthenelse e t f) =
@@ -70,6 +75,7 @@ print-statement (while e f) =
     ++ (print-statement f)
   ++ "}\n"
 print-statement nop = ""
+print-statement (putchar i) = "putchar(" ++ print-expr i ++ ");\n"
 
 print : (∀ ⦃ ℐ : C ⦄ → C.Statement ℐ) → String
 print = print-statement ∘ toAST
