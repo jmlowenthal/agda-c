@@ -164,8 +164,8 @@ postulate ≅ₚ-cong : ∀ { n } { v : Sets n L0 } (f : (v ⇉ Statement) → S
   → while e₁ then e₂ ≅ₚ if e₁ then (e₂ ； while e₁ then e₂) else nop
 β-while = ↝⇒≅ₛ ↝-while
 
-≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement } { k E }
-  → labels (𝒮 (x ≔ e ； f (★ x)) k E) [≈] labels (𝒮 (f e) k E)
+≔-subst : ∀ { α } { x : Ref α } { e : Expr α } { f : Expr α → Statement }
+  → x ≔ e ； f (★ x) ≅ₚ f e
 ≔-subst {α} {x} {e} {f} {k} {E} =
   let v , ⇒v = ⊢-total {α} {E} {e} in
     ≈R.begin
@@ -223,4 +223,37 @@ nested-while-loop {s} {k} {E} =
         ◅ ♯ (↝-seq
         ◅ ♯ ε)))))) ⟩
     labels (𝒮 (while true then (while true then s)) k E)
+  ≈R.∎
+
+nested-if : ∀ { e e' : Expr Bool } { s : Statement } { k E }
+  → 𝒮 (if e then (if e' then s else nop) else nop) k E ≅ₛ 𝒮 (if (e && e') then s else nop) k E
+nested-if {e} {e'} {s} {k} {E}
+  with ⊢-total {Bool} {E} {e} | ⊢-total {Bool} {E} {e'}
+... | 𝔹.false , ⇒v | _ , ⇒w =
+  ≈R.begin
+    labels (𝒮 (if e then (if e' then s else nop) else nop) k E)
+    ≈⟨ ↝⇒≅ₛ (↝-if-false ⇒v) ⟩
+    labels (𝒮 nop k E)
+    ≈˘⟨ ↝⇒≅ₛ (↝-if-false (&&-eval ⇒v ⇒w)) ⟩
+    labels (𝒮 (if (e && e') then s else nop) k E)
+  ≈R.∎
+... | 𝔹.true , ⇒v | 𝔹.false , ⇒w =
+  ≈R.begin
+    labels (𝒮 (if e then (if e' then s else nop) else nop) k E)
+    ≈⟨ ↝⇒≅ₛ (↝-if-true ⇒v) ⟩
+    labels (𝒮 (if e' then s else nop) k E)
+    ≈⟨ ↝⇒≅ₛ (↝-if-false ⇒w) ⟩
+    labels (𝒮 nop k E)
+    ≈˘⟨ ↝⇒≅ₛ (↝-if-false (&&-eval ⇒v ⇒w)) ⟩
+    labels (𝒮 (if (e && e') then s else nop) k E)
+  ≈R.∎
+... | 𝔹.true , ⇒v | 𝔹.true , ⇒w =
+  ≈R.begin
+    labels (𝒮 (if e then (if e' then s else nop) else nop) k E)
+    ≈⟨ ↝⇒≅ₛ (↝-if-true ⇒v) ⟩
+    labels (𝒮 (if e' then s else nop) k E)
+    ≈⟨ ↝⇒≅ₛ (↝-if-true ⇒w) ⟩
+    labels (𝒮 s k E)
+    ≈˘⟨ ↝⇒≅ₛ (↝-if-true (&&-eval ⇒v ⇒w)) ⟩
+    labels (𝒮 (if (e && e') then s else nop) k E)
   ≈R.∎

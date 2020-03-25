@@ -134,7 +134,7 @@ record Semantics : Set₁ where
     _~[_]↝_ : State → Label → State → Set
     reduce : ∀ X → Reduction _~[_]↝_ X
 
-    ⊢-total : ∀ { α E } { e : Expr α } → ∃[ v ] (E ⊢ e ⇒ v)
+    ⊢-total : ∀ { α E } { e : Expr α } → ∃[ v ] (E ⊢ e ⇒ v) -- should ensure no free variables
     ⊢-det : ∀ { α E } { e : Expr α } { v w : ⟦ α ⟧ } → E ⊢ e ⇒ v → E ⊢ e ⇒ w → v ≡ w 
     ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
       → { _ : x ∉nv E × x ∉nv E' }
@@ -356,3 +356,5 @@ module _ ⦃ _ : Semantics ⦄ where
   postulate ↝*-irr-cont : ∀ { x y k k' E e } → 𝒮 x k E ~[ e ]↝* 𝒮 y k E → 𝒮 x k' E ~[ e ]↝* 𝒮 y k' E
   postulate cont-comb : ∀ { s E E' e f k X } → 𝒮 s [] E ~[ e ]↝* 𝒮 nop [] E' → 𝒮 nop k E' ~[ f ]↝* X → 𝒮 s k E ~[ e ++ f ]↝* X
   postulate ≅ₛ-while-true : ∀ { s : Statement } { k k' E } → 𝒮 (while true then s) k E ≅ₛ 𝒮 (while true then s) k' E
+  -- s ； ...
+  -- nop ； ... or s' ； ...
