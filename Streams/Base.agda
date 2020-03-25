@@ -61,7 +61,7 @@ forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
     init' k =
       init (λ s0 →
         decl Int λ i →
-        i ≔ ⟨ int 0 ⟩ ；
+        i ≔ ⟪ int 0 ⟫ ；
         k (i , s0))
     term : (Ref Int × σ) → Ref Bool → Statement
     term (i , s0) ref =
@@ -70,7 +70,7 @@ forUnfold { α } (producer { σ = σ } (init , for (bound , index))) =
       ref ≔ (★ i) <= (★ x)
     step : (Ref Int × σ) →  (α → Statement) → Statement
     step (i , s0) k =
-      index s0 (★ i) (λ a → i ≔ (★ i) + ⟨ int 1 ⟩ ； k a)
+      index s0 (★ i) (λ a → i ≔ (★ i) + ⟪ int 1 ⟫ ； k a)
 forUnfold (producer (init , unfolder x)) =
   producer (init , unfolder x)
 
@@ -81,9 +81,9 @@ forUnfold-size (producer (_ , unfolder _)) = refl
 ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Expr α) m → Statement
 ofArrRaw _ Vec.[] = nop
 ofArrRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
-  x [ ⟨ int (n -ₙ 1) ⟩ ] ≔ h
+  x [ ⟪ int (n -ₙ 1) ⟫ ] ≔ h
 ofArrRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ ∷ t) =
-  x [ ⟨ int (n -ₙ (ℕ.suc m) -ₙ 1) ⟩ ] ≔ h₁ ；
+  x [ ⟪ int (n -ₙ (ℕ.suc m) -ₙ 1) ⟫ ] ≔ h₁ ；
   ofArrRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
 
 ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Expr α) n → Stream α
@@ -95,7 +95,7 @@ ofArr { α } { n } vec =
         k x
       upb : ∀ { m } → Ref (Array α m) → Ref Int → Statement
       upb { m } _ ref =
-        ref ≔ ⟨ int (m -ₙ 1) ⟩
+        ref ≔ ⟪ int (m -ₙ 1) ⟫
       index : ∀ { m } → Ref (Array α m) → Expr Int → (Expr α → Statement) → Statement
       index arr i k =
         decl α λ el →
@@ -133,7 +133,7 @@ iterRaw consumer (linear (producer (init , for (bound , index)))) =
   init (λ sp →
     decl Int λ l →
     l ← bound sp ；
-    for ⟨ int 0 ⟩ to ★ l then λ i →
+    for ⟪ int 0 ⟫ to ★ l then λ i →
       index sp (★ i) consumer)
 iterRaw consumer (linear (producer (init , unfolder (term , atMost1 , step)))) =
   init λ sp →
@@ -225,12 +225,12 @@ addNr n (producer { σ = σ } (init , unfolder (term , card , step))) =
     term' : CardT → Ref Int × σ → Ref Bool → Statement
     term' many (nr , s) r =
       r ← term s ；
-      r ≔ (★ r) && ((★ nr) == ⟨ int 0 ⟩)
+      r ≔ (★ r) && ((★ nr) == ⟪ int 0 ⟫)
     term' atMost1 (nr , s) = term s
     step' : Ref Int × σ → (Ref Int × _ → Statement) → Statement
     step' (nr , s) k = step s (λ el → k (nr , el))
 addNr _ (producer (_ , for _)) =
-  producer ((λ k → k ⊤.tt) , for ((λ _ r → r ≔ ⟨ int 0 ⟩) , (λ _ _ _ → nop)))
+  producer ((λ k → k ⊤.tt) , for ((λ _ r → r ≔ ⟪ int 0 ⟫) , (λ _ _ _ → nop)))
 
 take : ∀ ⦃ _ : C ⦄ → Expr Int → ∀ { α } → SStream α → SStream α
 take n (linear (producer (init , for (bound , index)))) =
@@ -239,8 +239,8 @@ take n (linear (producer (init , for (bound , index)))) =
       (λ s r →
         decl Int λ b →
         b ← bound s ；
-        if ((n - ⟨ int 1 ⟩) < (★ b)) then
-          r ≔ n - ⟨ int 1 ⟩
+        if ((n - ⟪ int 1 ⟫) < (★ b)) then
+          r ≔ n - ⟪ int 1 ⟫
         else
           r ≔ ★ b
       )
@@ -249,7 +249,7 @@ take n (linear (producer (init , for (bound , index)))) =
   )
 take n (linear (producer (init , unfolder x))) =
   mapRaw
-    (λ nrel k → let nr , el = nrel in nr ≔ ★ nr - ⟨ int 1 ⟩ ； k el)
+    (λ nrel k → let nr , el = nrel in nr ≔ ★ nr - ⟪ int 1 ⟫ ； k el)
     (linear (addNr n (producer (init , unfolder x))))
 take n (nested { β = α } (p , f)) =
   nested (
@@ -257,8 +257,8 @@ take n (nested { β = α } (p , f)) =
     λ nra →
       let nr , a = nra in
         mapRaw
-          (λ el k → nr ≔ ★ nr - ⟨ int 1 ⟩ ； k el)
-          (moreTermination (λ r → r ≔ (★ nr) == ⟨ int 0 ⟩) (f a))
+          (λ el k → nr ≔ ★ nr - ⟪ int 1 ⟫ ； k el)
+          (moreTermination (λ r → r ≔ (★ nr) == ⟪ int 0 ⟫) (f a))
   )
 
 -- TODO: drop
@@ -349,12 +349,12 @@ nil = linear (producer { σ = ⊤ } ((λ x → x ⊤.tt) , for ((λ _ _ → nop)
 -- iota n
 -- The infinite stream of natural numbers starting at n
 iota : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
-iota n = unfold (λ n → (true , n , n + ⟨ int 1 ⟩)) ⟨ int n ⟩
+iota n = unfold (λ n → (true , n , n + ⟪ int 1 ⟫)) ⟪ int n ⟫
 
 -- nat n
 -- The stream of natural numbers less than n
 nat : ∀ ⦃ _ : C ⦄ → ℕ → Stream Int
-nat n = unfold (λ x → (x < ⟨ int n ⟩ , x , x + ⟨ int 1 ⟩)) ⟨ int 0 ⟩
+nat n = unfold (λ x → (x < ⟪ int n ⟫ , x , x + ⟪ int 1 ⟫)) ⟪ int 0 ⟫
 
 _▹_ : ∀ ⦃ _ : C ⦄ → ∀ { α n } → ∀ { β : Set n } → Stream α → (Stream α → β) → β
 x ▹ f = f x 
