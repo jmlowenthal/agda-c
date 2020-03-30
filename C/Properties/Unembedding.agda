@@ -72,6 +72,7 @@ data Expr where
   true false : ∀ { n Γ } → Expr n Γ Bool
   int : ∀ { n Γ } → ℤ → Expr n Γ Int
   var : ∀ { α n Γ } → Ref n Γ α → Expr n Γ α
+  tenary : ∀ { α n Γ } → Expr n Γ Bool → Expr n Γ α → Expr n Γ α → Expr n Γ α
 
 data Statement : ∀ n → Vec c_type n → Set where
   if : ∀ { n Γ } → Expr n Γ Bool → Statement n Γ → Statement n Γ → Statement n Γ
@@ -81,12 +82,13 @@ data Statement : ∀ n → Vec c_type n → Set where
   nop : ∀ { n Γ } → Statement n Γ
   for : ∀ { n Γ } → Expr n Γ Int → Expr n Γ Int → Statement (suc n) (Int ∷ Γ) → Statement n Γ
   while : ∀ { n Γ } → Expr n Γ Bool → Statement n Γ → Statement n Γ
+  putchar : ∀ { n Γ } → Expr n Γ Int → Statement n Γ
 
 impl : C
 C.Ref impl α = ∀ n Γ → Maybe (Ref n Γ α)
 C.Expr impl α = ∀ n Γ → Maybe (Expr n Γ α)
 C.Statement impl = ∀ n Γ → Maybe (Statement n Γ)
-C.⟨_⟩ impl x n Γ = just (int x)
+C.⟪_⟫ impl x n Γ = just (int x)
 C._+_ impl x y n Γ =
   x n Γ >>= λ x →
     y n Γ >>= λ y →
@@ -136,6 +138,11 @@ C._&&_ impl x y n Γ =
 C.!_ impl x n Γ =
   x n Γ >>= λ x →
     just (not x)
+C._⁇_∷_ impl e x y n Γ =
+  e n Γ >>= λ e →
+    x n Γ >>= λ x →
+      y n Γ >>= λ y →
+        just (tenary e x y)
 C.if_then_else_ impl cond s₁ s₂ n Γ =
   cond n Γ >>= λ cond →
     s₁ n Γ >>= λ s₁ →
@@ -177,6 +184,9 @@ C.while_then_ impl e s n Γ =
   e n Γ >>= λ e →
     s n Γ >>= λ s →
       just (while e s)
+C.putchar impl e n Γ =
+  e n Γ >>= λ e →
+    just (putchar e)
 
 data Env { impl : C } : ∀ n → Vec c_type n → Set where
   empty : Env 0 []
@@ -208,8 +218,10 @@ toExpr* (op && x y) = op₂ C._&&_ x y
 toExpr* (not x) impl env = C.!_ impl (toExpr* x impl env)
 toExpr* true impl env = C.true impl
 toExpr* false impl env = C.false impl
-toExpr* (int n) impl env = C.⟨_⟩ impl n
+toExpr* (int n) impl env = C.⟪_⟫ impl n
 toExpr* (var x) impl env = C.★_ impl (lookupT env x)
+toExpr* (tenary e x y) impl env =
+  C._⁇_∷_ impl (toExpr* e impl env) (toExpr* x impl env) (toExpr* y impl env)
 
 Statement* : ∀ n → Vec c_type n → Set₁
 Statement* n Γ = ∀ impl → Env {impl} n Γ → C.Statement impl
@@ -227,8 +239,14 @@ toStatement* (seq x y) impl env =
 toStatement* (decl α f) impl env =
   C.decl impl α (λ x → toStatement* f impl (extend env x))
 toStatement* nop impl env = C.nop impl
-toStatement* (for l u f) impl env = C.for_to_then_ impl (toExpr* l impl env) (toExpr* u impl env) λ r → toStatement* f impl (extend env r)
-toStatement* (while e s) impl env = C.while_then_ impl (toExpr* e impl env) (toStatement* s impl env)
+toStatement* (for l u f) impl env =
+  C.for_to_then_ impl
+    (toExpr* l impl env)
+    (toExpr* u impl env)
+    (λ r → toStatement* f impl (extend env r))
+toStatement* (while e s) impl env =
+  C.while_then_ impl (toExpr* e impl env) (toStatement* s impl env)
+toStatement* (putchar e) impl env = C.putchar impl (toExpr* e impl env)
 
 convert-to : (∀ ⦃ impl ⦄ → C.Statement impl) → C.Statement impl
 convert-to s = s ⦃ impl ⦄
@@ -256,7 +274,7 @@ pattern ↶⁹ = Ref.suc ↶⁸
 -- bad = s ⦃ impl ⦄ v
 --   where
 --     s : ∀ ⦃ impl ⦄ → C.Ref impl Int → C.Statement impl
---     s ⦃ impl ⦄ r = while (C._<_ impl (★ r) ⟨ ℤ.+ 0 ⟩) then C.nop impl
+--     s ⦃ impl ⦄ r = while (C._<_ impl (★ r) ⟪ ℤ.+ 0 ⟫) then C.nop impl
 --     v : C.Ref impl Int
 --     v 0 [] = nothing
 --     v (suc n) (Int ∷ Γ) = just zero
