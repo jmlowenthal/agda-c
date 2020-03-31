@@ -322,8 +322,21 @@ toAST s = proj₂ ((s ⦃ AST-C ⦄) 0)
   ∨-dec (helper a b)
   where
     helper : Decidable (λ (a b : IRef α) → a ≡ b)
-    helper (n , a) (m , b) with n ℕ.≟ m | ≟-List ≟-IExpr a b
-    ... | _ | _ = {!!}
+    helper (n , a) (m , b) with n ℕ.≟ m
+    ... | no ¬p = no λ { refl → ¬p refl }
+    ... | yes refl with check-list a b
+      where
+        check-list : Decidable (λ (x y : List (IExpr Int)) → x ≡ y)
+        check-list [] [] = yes refl
+        check-list [] (x ∷ y) = no λ ()
+        check-list (x ∷ x₁) [] = no λ ()
+        check-list (x ∷ xs) (y ∷ ys) with ≟-IExpr x y
+        ... | no ¬q = no λ { refl → ¬q refl }
+        ... | yes refl with check-list xs ys
+        ...   | no ¬q = no λ { refl → ¬q refl }
+        ...   | yes refl = yes refl
+    ...   | yes refl = yes refl
+    ...   | no ¬q = no λ { refl → ¬q refl }
     ∨-dec : ∀ { a b : IRef α } → Dec (a ≡ b) → Dec (deref a ≡ deref b)
     ∨-dec (yes refl) = yes refl
     ∨-dec (no ¬p) = no λ { refl → ¬p refl }
