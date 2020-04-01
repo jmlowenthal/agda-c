@@ -221,7 +221,7 @@ addNr n (producer { σ = σ } (init , unfolder (term , card , step))) =
   producer (init' , unfolder (term' card , card , step'))
   where
     init' : (Ref Int × σ → Statement) → Statement
-    init' k = init (λ s → decl Int λ nr → k (nr , s))
+    init' k = init (λ s → decl Int λ nr → nr ≔ n ； k (nr , s))
     term' : CardT → Ref Int × σ → Ref Bool → Statement
     term' many (nr , s) r =
       r ← term s ；
@@ -247,9 +247,9 @@ take n (linear (producer (init , for (bound , index)))) =
       , index)
     )
   )
-take n (linear (producer (init , unfolder x))) =
+take n (linear p@(producer (init , unfolder x))) =
   mapRaw
-    (λ nrel k → let nr , el = nrel in nr ≔ ★ nr - ⟪ int 1 ⟫ ； k el)
+    (λ { (nr , el) k → nr ≔ ★ nr - ⟪ int 1 ⟫ ； k el })
     (linear (addNr n (producer (init , unfolder x))))
 take n (nested { β = α } (p , f)) =
   nested (
