@@ -225,7 +225,7 @@ addNr n (producer { σ = σ } (init , unfolder (term , card , step))) =
     term' : CardT → Ref Int × σ → Ref Bool → Statement
     term' many (nr , s) r =
       r ← term s ；
-      r ≔ (★ r) && ((★ nr) == ⟪ int 0 ⟫)
+      r ≔ (★ r) && ((★ nr) > ⟪ int 0 ⟫)
     term' atMost1 (nr , s) = term s
     step' : Ref Int × σ → (Ref Int × _ → Statement) → Statement
     step' (nr , s) k = step s (λ el → k (nr , el))
