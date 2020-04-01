@@ -43,5 +43,5 @@ sum = fold (λ x y → x + y) ⟪ + 0 ⟫
 -- _ = {!print-main (nat 10 ▹ square ▹ sum)!}
 
 main =
-  let ex = print-main ((iota 0) ▹ filter (λ x → (x / ⟪ + 2 ⟫) == ⟪ + 0 ⟫) ▹ sum) in
+  let ex = print-main-return ((iota 0) ▹ filter (λ x → (x / ⟪ + 2 ⟫) == ⟪ + 0 ⟫) ▹ sum) in
      run (IO.putStr ex)

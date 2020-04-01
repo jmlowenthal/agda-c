@@ -80,8 +80,12 @@ print-statement (putchar i) = "putchar(" ++ print-expr i ++ ");\n"
 print : (∀ ⦃ ℐ : C ⦄ → C.Statement ℐ) → String
 print = print-statement ∘ toAST
 
-print-main : ∀ { α } → (∀ ⦃ ℐ ⦄ → C.Ref ℐ α → C.Statement ℐ) → String
-print-main {α} s =
+print-main : (∀ ⦃ ℐ ⦄ → C.Statement ℐ) → String
+print-main s =
+  "int main(void) {\n" ++ print-statement (proj₂ (s ⦃ AST-C ⦄ 0)) ++ "return 0;\n}"
+
+print-main-return : ∀ { α } → (∀ ⦃ ℐ ⦄ → C.Ref ℐ α → C.Statement ℐ) → String
+print-main-return {α} s =
   let ref = (0 , []) in
   let s = declaration α ref (proj₂ (s ⦃ AST-C ⦄ ref 1)) in
     "int main(void) {\n" ++ print-statement s ++ "return " ++ print-ref {α} ref ++ ";\n}"
