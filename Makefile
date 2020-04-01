@@ -7,7 +7,7 @@ CC=clang
 
 all: test main.o
 
-main.agda.o: *.agda
+main.agda.o: $(wildcard **/*.agda)
 	$(AGDA_C) Main.agda
 	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
 		MAlonzo/Code/Main.hs \
@@ -20,7 +20,7 @@ main.c: main.agda.o
 main.o: main.c
 	$(CC) main.c -o main.o
 
-test.agda.o : *.agda
+test.agda.o : $(wildcard **/*.agda)
 	$(AGDA_C) Test.agda
 	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
 		MAlonzo/Code/Test.hs \

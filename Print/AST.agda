@@ -38,7 +38,7 @@ data IStatement : Set where
   ifthenelse : IExpr Bool → IStatement → IStatement → IStatement
   assignment : ∀ { α } → IRef α → IExpr α → IStatement
   sequence : IStatement → IStatement → IStatement
-  declaration : (α : c_type) → IRef α → IStatement → IStatement
+  declaration : (α : c_type) → ℕ → IStatement → IStatement
   for : IRef Int → IExpr Int → IExpr Int → IStatement → IStatement
   while : IExpr Bool → IStatement → IStatement
   nop : IStatement
@@ -76,8 +76,8 @@ C._；_ AST-C x y n =
   let n , y = y n in
     n , sequence x y
 C.decl AST-C α f n =
-  let ref = (n , []) in
-  let n , f = f ref (ℕ.suc n) in
+  let ref = n in
+  let n , f = f (ref , []) (ℕ.suc n) in
     n , declaration α ref f
 C.nop AST-C n = n , nop
 C.for_to_then_ AST-C l u f n =
