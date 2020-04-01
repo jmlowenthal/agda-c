@@ -8,6 +8,8 @@ open import Print.Print
 open import Streams.Base
 open import Streams.Claims
 
+import Data.Nat.Show as ℕs
+
 module Test where
 
 open C.C ⦃ ... ⦄
@@ -40,7 +42,7 @@ if-equal {Array α n} x y t f =
 generate-test : ∀ ⦃ _ : C ⦄ { α } → Claim (Expr α) → Statement
 generate-test {α} (s ≈ t) =
   let n = 10 in
-    putstr ("Validating that the first " ++ fromList (fromℕ n ∷ []) ++ " elements are equal") ；
+    putstr ("Validating that the first " ++ ℕs.show n ++ " elements are equal") ；
     decl (Array α n) λ S →
     decl Int λ i →
     i ≔ ⟪ + 0 ⟫ ；
