@@ -8,7 +8,7 @@ open import Print.Print
 open import Streams.Base
 open import Streams.Claims
 
-module Tests where
+module Test where
 
 open C.C ⦃ ... ⦄
 
