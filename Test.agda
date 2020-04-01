@@ -1,8 +1,8 @@
-open import C
-open import Data.Char as Char using (Char ; toℕ ; fromℕ)
+open import C.Base
+open import C.Extras
+open import Data.Nat as ℕ using (ℕ)
 open import Data.Integer as ℤ using (+_)
-open import Data.List as List using (List ; [] ; _∷_)
-open import Data.String as String using (String ; toList ; fromList ; _++_)
+open import Data.String as String using (String ; _++_)
 open import IO
 open import Print.Print
 open import Streams.Base
@@ -12,18 +12,7 @@ import Data.Nat.Show as ℕs
 
 module Test where
 
-open C.C ⦃ ... ⦄
-
-putnl : ∀ ⦃ _ : C ⦄ → Statement
-putnl = putchar ⟪ + (toℕ '\n') ⟫
-
-putstr : ∀ ⦃ _ : C ⦄ → String → Statement
-putstr s = putcharlist (toList s)
-  where
-    putcharlist : List Char → Statement
-    putcharlist [] = nop
-    putcharlist (h ∷ []) = putchar ⟪ + (toℕ h) ⟫
-    putcharlist (h ∷ t@(_ ∷ _)) = putchar ⟪ + (toℕ h) ⟫ ； putcharlist t
+open C ⦃ ... ⦄
 
 if-equal : ∀ ⦃ _ : C ⦄ { α } → Ref α → Ref α → Statement → Statement → Statement
 if-equal {Int} x y t f = if (★ x) == (★ y) then t else f
@@ -39,25 +28,56 @@ if-equal {Array α n} x y t f =
   ) ；
   if ★ eq then t else f
 
-generate-test : ∀ ⦃ _ : C ⦄ { α } → Claim (Expr α) → Statement
-generate-test {α} (s ≈ t) =
+show : ∀ ⦃ _ : C ⦄ { α } → Expr α → Statement
+show {Int} e =
+  decl Int λ i →
+  decl Int λ j →
+  decl Bool λ cond →
+  cond ≔ true ；
+  i ≔ e ；
+  if (★ i) < ⟪ + 0 ⟫ then (
+    putstr "-" ；
+    i ≔ ⟪ + 0 ⟫ - (★ i))
+  else
+    nop ；
+  while (★ cond) then (
+    j ≔ (★ i) / ⟪ + 10 ⟫ ；
+    putchar ((★ i) - (★ j) + ⟪ + 48 ⟫) ；
+    i ≔ ★ j ；
+    cond ≔ ! ((★ i) == ⟪ + 0 ⟫))
+show {Bool} e = if e then putstr "true" else putstr "false"
+show {Array α n} e = nop
+
+_←⁺_ : ∀ ⦃ _ : C ⦄ { α n } → Ref (Array α n) → Stream α → Statement
+_←⁺_ {α} {n} arr s =
+  decl Int λ i →
+  i ≔ ⟪ + 0 ⟫ ；
+  iter
+    (λ e →
+       arr [ ★ i ] ≔ e ；
+       i ≔ (★ i) + ⟪ + 1 ⟫)
+    (take ⟪ + n ⟫ s)
+
+generate-test : ∀ ⦃ _ : C ⦄ { α } → String → Claim (Expr α) → Statement
+generate-test {α} name (s ≈ t) =
   let n = 10 in
-    putstr ("Validating that the first " ++ ℕs.show n ++ " elements are equal") ；
+    putstr name ；
     decl (Array α n) λ S →
-    decl Int λ i →
-    i ≔ ⟪ + 0 ⟫ ；
-    iter (λ e → S [ (★ i) ] ≔ e ； i ≔ (★ i) + ⟪ + 1 ⟫) (take ⟪ + n ⟫ s) ；
+    S ←⁺ s ；
     decl (Array α n) λ T →
-    i ≔ ⟪ + 0 ⟫ ；
-    iter (λ e → T [ ★ i ] ≔ e ； i ≔ (★ i) + ⟪ + 1 ⟫) (take ⟪ + n ⟫ t) ；
+    T ←⁺ t ；
     if-equal S T
-      (putstr "[PASSED]\n")
+      (putstr-coloured " [PASSED]" 32)
     -- else
-      (putstr "[FAILED]\n")
+      (putstr-coloured " [FAILED]" 31)
 
 main =
   run (IO.putStr ex)
   where
     ex : String
     ex = print-main (
-      generate-test (map'≅map (λ e → e) (iota 0)))
+      putstr "Running tests:\n" ；
+      generate-test "map'=map" (map'≅map (λ e → e) (iota 0)) ；
+      generate-test "map-map" (map-map (iota 0) (λ e → e * ⟪ + 2 ⟫) (λ e → e + ⟪ + 2 ⟫)) ；
+      generate-test "map-id" (map-id (iota 0)) ；
+      generate-test "filter-filter" (filter-filter (iota 0) (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫) λ e → (e % ⟪ + 5 ⟫) == ⟪ + 0 ⟫))

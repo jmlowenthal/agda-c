@@ -1,7 +1,7 @@
 module C.Base where
 
 open import Data.Nat using (ℕ ; _≟_)
-open import Data.Integer using (ℤ)
+open import Data.Integer as ℤ using (ℤ)
 open import Relation.Binary using (Rel ; IsPartialOrder)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary using (Dec ; yes ; no)
@@ -49,7 +49,7 @@ record C : Set₁ where
     putchar : Expr Int → Statement
 
   _←_ : ∀ { α } → Ref α → (Ref α → Statement) → Statement
-  x ← e = e x 
+  x ← e = e x
 
   infixr 1 _；_
   infix 2 if_then_else_

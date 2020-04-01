@@ -27,12 +27,12 @@ print-ref {α} (r , h ∷ t) = (print-ref {α} (r , t)) ++ "[" ++ (print-expr h)
 
 print-decl : c_type → ℕ.ℕ → String
 print-decl Int r = "int " ++ print-ref {Int} (r , [])
-print-decl Bool r = "int " ++ print-ref {Bool} (r , [])
+print-decl Bool r = "/* BOOL */ int " ++ print-ref {Bool} (r , [])
 print-decl (Array α n) r = builder (Array α n) ""
   where
     builder : c_type → String → String
-    builder Int acc = print-ref {Int} (r , []) ++ acc
-    builder Bool acc = print-ref {Bool} (r , []) ++ acc
+    builder Int acc = print-decl Int r ++ acc
+    builder Bool acc = print-decl Bool r ++ acc
     builder (Array α n) acc = builder α (acc ++ "[" ++ ℕs.show n ++ "]")
 
 print-expr (lit x) = ℤ.show x
