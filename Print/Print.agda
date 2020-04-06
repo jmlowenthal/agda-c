@@ -101,12 +101,12 @@ data C-Function : Set₁ where
 
 Program = List String × List C-Function
 
-print-program : Program → String
-print-program (i , f) = print-includes i ++ print-funcs f
+print-func : ∀ α → String → ∀ sig → (∀ ⦃ _ : C ⦄ → Func sig α) → String
+print-func α name sig body =
+  print-return-type α ++ " " ++ name ++ "(" ++ print-arguments sig 0 ++ ") {\n"
+    ++ print-body sig (body ⦃ AST-C ⦄) 0
+  ++ "}\n"
   where
-    print-includes : List String → String
-    print-includes [] = ""
-    print-includes (h ∷ t) = "#include <" ++ h ++ ">\n" ++ print-includes t
     print-return-type : Maybe c_type → String
     print-return-type nothing = "void"
     print-return-type (just α) = print-ctype α
@@ -120,11 +120,13 @@ print-program (i , f) = print-includes i ++ print-funcs f
     print-body {just α} [] body n =
       print-statement (declaration α n (proj₂ (body (n , []) (suc n)))) ++ "return " ++ print-ref {α} (n , []) ++ ";\n"
     print-body {_} (α ∷ t) body n = print-body t (body (n , [])) (ℕ.suc n)
-    print-func : ∀ α → String → ∀ sig → (∀ ⦃ _ : C ⦄ → Func sig α) → String
-    print-func α name sig body =
-      print-return-type α ++ " " ++ name ++ "(" ++ print-arguments sig 0 ++ ") {\n"
-        ++ print-body sig (body ⦃ AST-C ⦄) 0
-      ++ "}\n"
+
+print-program : Program → String
+print-program (i , f) = print-includes i ++ print-funcs f
+  where
+    print-includes : List String → String
+    print-includes [] = ""
+    print-includes (h ∷ t) = "#include <" ++ h ++ ">\n" ++ print-includes t
     print-funcs : List C-Function → String
     print-funcs [] = ""
     print-funcs (void name sig f ∷ l) = (print-func nothing name sig f) ++ print-funcs l
