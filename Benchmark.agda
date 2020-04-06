@@ -137,14 +137,6 @@ benchmark-function name body =
 main =
   run (IO.putStr ex)
   where
-    gen : ∀ ⦃ _ : C ⦄ n → Vec (Expr Int) n
-    gen _ = Vec.tabulate (λ n → ⟪ + ((Fin.toℕ n) ℕ÷.% 10) ⟫)
-    gen100M : ∀ ⦃ _ : C ⦄ → Vec _ 10000
-    gen100M = gen _
-    gen10M : ∀ ⦃ _ : C ⦄ → Vec _ 1000
-    gen10M = gen _
-    gen10K : ∀ ⦃ _ : C ⦄ → Vec _ 100
-    gen10K = gen _
     100M = 100000000
     10M =   10000000
     10K =      10000
