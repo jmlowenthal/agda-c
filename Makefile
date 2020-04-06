@@ -1,9 +1,11 @@
 STDLIB=/usr/share/agda-stdlib/
 AGDA_C=agda --compile --ghc-dont-call-ghc -i $(STDLIB)
 GHC=ghc
-GHC_PKGS=-package text -package ghc
+GHC_PKGS=-package text -package ghc -O2
 GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
 CC=clang
+# Sudo is required here to ensure CAP_SYS_ADMIN permissions
+PERF=sudo perf stat -r 100 --
 
 all: test main.o
 
@@ -36,8 +38,31 @@ test.o: test.c
 test: test.o
 	./test.o
 
+benchmark.agda.o: *.agda **/*.agda
+	$(AGDA_C) Benchmark.agda
+	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
+		MAlonzo/Code/Benchmark.hs \
+		-main-is MAlonzo.Code.Benchmark \
+		-o benchmark.agda.o
+
+benchmarks.c: benchmark.agda.o
+	./benchmark.agda.o > benchmarks.c
+
+benchmark-%.o: benchmarks.c
+	$(CC) -DBENCHMARK_$* benchmarks.c -o benchmark-$*.o
+
+benchmark-%: benchmark-%.o
+	$(PERF) ./benchmark-$*.o
+
+benchmark.deps: benchmarks.c
+	grep -e "#if BENCHMARK_[a-z_\-]*" benchmarks.c \
+		| { echo "depends:"; sed -r "s/.{14}/benchmark-/"; } \
+		| { tr '\n' ' '; echo ""; } \
+		| tee benchmark.deps
+
+include benchmark.deps
+
+benchmark: depends
+
 clean:
-	rm -r MAlonzo
-	rm *.agdai
-	rm *.c
-	rm *.o
+	rm -r MAlonzo *.agdai **/*.agdai *.c *.o *.deps

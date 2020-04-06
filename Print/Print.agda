@@ -72,8 +72,8 @@ print-statement (declaration α ref f) =
 print-statement (for ref l u f) =
   let i = print-ref {Int} ref in
     "for ("
-      ++ (print-ctype Int) ++ i ++ " = " ++ (print-expr l) ++ "; "
-      ++ i ++ " < " ++ (print-expr u) ++ "; "
+      ++ (print-ctype Int) ++ " " ++ i ++ " = " ++ (print-expr l) ++ "; "
+      ++ i ++ " <= " ++ (print-expr u) ++ "; "
       ++ "++" ++ i ++ ") {\n"
       ++ (print-statement f)
     ++ "}\n"

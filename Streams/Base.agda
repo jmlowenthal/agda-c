@@ -78,20 +78,20 @@ forUnfold-size : ∀ ⦃ _ : C ⦄ { α } (p : Producer α) → ∥ forUnfold p 
 forUnfold-size (producer (_ , for _)) = refl
 forUnfold-size (producer (_ , unfolder _)) = refl
 
-ofArrRaw : ∀ ⦃ _ : C ⦄ → ∀ { α n m } → {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Expr α) m → Statement
-ofArrRaw _ Vec.[] = nop
-ofArrRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
+ofVecRaw : ∀ ⦃ _ : C ⦄ { α n m } {m≤n : m ≤ₙ n} → Ref (Array α n) → Vec (Expr α) m → Statement
+ofVecRaw _ Vec.[] = nop
+ofVecRaw {n = n} {m≤n = 1≤n} x (h ∷ []) =
   x [ ⟪ int (n -ₙ 1) ⟫ ] ≔ h
-ofArrRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ ∷ t) =
+ofVecRaw {n = n} {m = ℕ.suc (ℕ.suc m)} {m≤n = m+2≤n} x (h₁ ∷ h₂ ∷ t) =
   x [ ⟪ int (n -ₙ (ℕ.suc m) -ₙ 1) ⟫ ] ≔ h₁ ；
-  ofArrRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
+  ofVecRaw {m≤n = ≤-trans (n≤1+n (ℕ.suc m)) m+2≤n} x (h₂ ∷ t)
 
-ofArr : ∀ ⦃ _ : C ⦄ → ∀ { α n } → Vec (Expr α) n → Stream α
-ofArr { α } { n } vec =
+ofVec : ∀ ⦃ _ : C ⦄ { α n } → Vec (Expr α) n → Stream α
+ofVec { α } { n } vec =
   let init : (Ref (Array α n) → Statement) → Statement
       init k =
         decl (Array α n) λ x →
-        ofArrRaw {m≤n = ≤-refl} x vec ；
+        ofVecRaw {m≤n = ≤-refl} x vec ；
         k x
       upb : ∀ { m } → Ref (Array α m) → Ref Int → Statement
       upb { m } _ ref =
@@ -103,6 +103,19 @@ ofArr { α } { n } vec =
         k (★ el) -- TODO: requires i ∈ n
   in
     linear (producer (init , for (upb , index)))
+
+ofArr : ∀ ⦃ _ : C ⦄ { α n } → Ref (Array α n) → Stream α
+ofArr {α} {n} arr = linear (producer (init , for (upb , index)))
+  where
+    init : (Ref (Array α n) → Statement) → Statement
+    init k = k arr
+    upb : ∀ { m } → Ref (Array α m) → Ref Int → Statement
+    upb {m} _ ref = ref ≔ ⟪ int (m -ₙ 1) ⟫
+    index : ∀ { m } → Ref (Array α m) → Expr Int → (Expr α → Statement) → Statement
+    index arr i k =
+      decl α λ el →
+      el ≔ ★ (arr [ i ]) ；
+      k (★ el) -- TODO: requires i ∈ n
 
 -- unfold ≡ λ f z → Functor.fmap f (Applicative.pure z)
 unfold : ∀ ⦃ _ : C ⦄ → ∀ { α ζ }

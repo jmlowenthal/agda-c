@@ -5,4 +5,4 @@ MAlonzo/
 *~
 *.o
 *.c
-
+*.deps
