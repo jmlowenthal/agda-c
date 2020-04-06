@@ -58,8 +58,8 @@ _←⁺_ {α} {n} arr s =
        i ≔ (★ i) + ⟪ + 1 ⟫)
     (take ⟪ + n ⟫ s)
 
-generate-test : ∀ ⦃ _ : C ⦄ { α } → String → Claim (Expr α) → Statement
-generate-test {α} name (s ≈ t) =
+generate-test : ∀ ⦃ _ : C ⦄ { α } → String → Claim (Expr α) → Ref Int → Statement
+generate-test {α} name (s ≈ t) r =
   let n = 10 in
     putstr name ；
     decl (Array α n) λ S →
@@ -69,15 +69,16 @@ generate-test {α} name (s ≈ t) =
     if-equal S T
       (putstr-coloured " [PASSED]" 32)
     -- else
-      (putstr-coloured " [FAILED]" 31)
+      (putstr-coloured " [FAILED]" 31 ； r ≔ ★ r - ⟪ + 1 ⟫)
 
 main =
   run (IO.putStr ex)
   where
     ex : String
-    ex = print-main (
+    ex = print-main-return (λ r →
+      r ≔ ⟪ + 0 ⟫ ；
       putstr "Running tests:\n" ；
-      generate-test "map'=map" (map'≅map (λ e → e) (iota 0)) ；
-      generate-test "map-map" (map-map (iota 0) (λ e → e * ⟪ + 2 ⟫) (λ e → e + ⟪ + 2 ⟫)) ；
-      generate-test "map-id" (map-id (iota 0)) ；
-      generate-test "filter-filter" (filter-filter (iota 0) (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫) λ e → (e % ⟪ + 5 ⟫) == ⟪ + 0 ⟫))
+      generate-test "map'=map" (map'≅map (λ e → e) (iota 0)) r ；
+      generate-test "map-map" (map-map (iota 0) (λ e → e * ⟪ + 2 ⟫) (λ e → e + ⟪ + 2 ⟫)) r ；
+      generate-test "map-id" (map-id (iota 0)) r ；
+      generate-test "filter-filter" (filter-filter (iota 0) (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫) λ e → (e % ⟪ + 5 ⟫) == ⟪ + 0 ⟫) r)

@@ -1,18 +1,21 @@
 module Print.Print where
 
-open import C
-open import Print.AST
-open import Data.String
-open import Data.List using (List ; [] ; _∷_)
+open import C.Base
+open import Data.List as List using (List ; [] ; _∷_)
+open import Data.Maybe
+open import Data.Nat as ℕ using (ℕ ; suc)
 open import Data.Product
+open import Data.String
 open import Function using (_∘_)
-open import Relation.Nullary
+open import Print.AST
 open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 
 import Data.Integer as ℤ
-import Data.Nat as ℕ
 import Data.Nat.Show as ℕs
 import Data.Char as Char
+
+open C ⦃ ... ⦄
 
 print-ctype : c_type → String
 print-ctype Int = "int"
@@ -81,17 +84,60 @@ print-statement (while e f) =
 print-statement nop = ""
 print-statement (putchar i) = "putchar(" ++ print-expr i ++ ");\n"
 
-print : (∀ ⦃ ℐ : C ⦄ → C.Statement ℐ) → String
+print : (∀ ⦃ _ : C ⦄ → Statement) → String
 print = print-statement ∘ toAST
 
 wrap-main : String → String
 wrap-main body = "#include <stdio.h>\nint main(void) {\n" ++ body ++ ";\n}"
 
-print-main : (∀ ⦃ ℐ ⦄ → C.Statement ℐ) → String
-print-main s =
-  wrap-main (print-statement (proj₂ (s ⦃ AST-C ⦄ 0)) ++ "return 0")
+Func : ∀ ⦃ _ : C ⦄ → List c_type → Maybe c_type → Set
+Func [] nothing = Statement
+Func [] (just α) = Ref α → Statement
+Func (α ∷ t) β = Ref α → Func t β
 
-print-main-return : ∀ { α } → (∀ ⦃ ℐ ⦄ → C.Ref ℐ α → C.Statement ℐ) → String
-print-main-return {α} s =
-  let s = declaration α 0 (proj₂ (s ⦃ AST-C ⦄ (0 , []) 1)) in
-    wrap-main (print-statement s ++ "return " ++ print-ref {α} (0 , []))
+data C-Function : Set₁ where
+  void : String → ∀ (sig : List c_type) → (∀ ⦃ _ : C ⦄ → Func sig nothing) → C-Function
+  int : String → ∀ (sig : List c_type) → (∀ ⦃ _ : C ⦄ → Func sig (just Int)) → C-Function
+
+Program = List String × List C-Function
+
+print-program : Program → String
+print-program (i , f) = print-includes i ++ print-funcs f
+  where
+    print-includes : List String → String
+    print-includes [] = ""
+    print-includes (h ∷ t) = "#include <" ++ h ++ ">\n" ++ print-includes t
+    print-return-type : Maybe c_type → String
+    print-return-type nothing = "void"
+    print-return-type (just α) = print-ctype α
+    print-arguments : List c_type → ℕ.ℕ → String
+    print-arguments [] _ = "void"
+    print-arguments (h ∷ []) n = print-decl h n
+    print-arguments (h ∷ t@(_ ∷ _)) n =
+      print-decl h n ++ ", " ++ print-arguments t (ℕ.suc n)
+    print-body : ∀ { α } sig → (Func ⦃ AST-C ⦄ sig α) → ℕ.ℕ → String
+    print-body {nothing} [] body n = print-statement (proj₂ (body n))
+    print-body {just α} [] body n =
+      print-statement (declaration α n (proj₂ (body (n , []) (suc n)))) ++ "return " ++ print-ref {α} (n , []) ++ ";\n"
+    print-body {_} (α ∷ t) body n = print-body t (body (n , [])) (ℕ.suc n)
+    print-func : ∀ α → String → ∀ sig → (∀ ⦃ _ : C ⦄ → Func sig α) → String
+    print-func α name sig body =
+      print-return-type α ++ " " ++ name ++ "(" ++ print-arguments sig 0 ++ ") {\n"
+        ++ print-body sig (body ⦃ AST-C ⦄) 0
+      ++ "}\n"
+    print-funcs : List C-Function → String
+    print-funcs [] = ""
+    print-funcs (void name sig f ∷ l) = (print-func nothing name sig f) ++ print-funcs l
+    print-funcs (int name sig f ∷ l) = (print-func (just Int) name sig f) ++ print-funcs l
+
+print-main : (∀ ⦃ _ : C ⦄ → Statement) → String
+print-main s =
+  print-program (
+    "stdio.h" ∷ [] ,
+    (int "main" [] (λ i → s ； i ≔ ⟪ ℤ.+ 0 ⟫)) ∷ [])
+
+print-main-return : (∀ ⦃ _ : C ⦄ → Ref Int → Statement) → String
+print-main-return s =
+  print-program (
+    "stdio.h" ∷ [] ,
+    (int "main" [] s) ∷ [])
