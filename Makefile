@@ -3,7 +3,7 @@ AGDA_C=agda --compile --ghc-dont-call-ghc -i $(STDLIB)
 GHC=ghc
 GHC_PKGS=-package text -package ghc -O2
 GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
-CC=clang
+CC=clang -Wl,-stack-size,0x40000000 # 1GB stack
 # Sudo is required here to ensure CAP_SYS_ADMIN permissions
 PERF=sudo perf stat -r 100 --
 
