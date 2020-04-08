@@ -47,14 +47,5 @@ main =
     ex = print-main (
       decl Int λ r →
       r ← ((nat 100) ▹ filter (λ x → (x % ⟪ + 2 ⟫) == ⟪ + 0 ⟫) ▹ sum) ；
-      decl Int λ x →
-      x ≔ ⟪ + 1 ⟫ ；
-      while (★ x) < (★ r) then (x ≔ ★ x * ⟪ + 10 ⟫) ；
-      x ≔ ★ x / ⟪ + 10 ⟫ ；
-      while (★ x) >= ⟪ + 1 ⟫ then (
-        putchar (⟪ + 48 ⟫ + ((★ r) / (★ x))) ；
-        r ≔ (★ r) % (★ x) ；
-        x ≔ ★ x / ⟪ + 10 ⟫
-      ) ；
-      putnl)
+      show (★ r))
 
