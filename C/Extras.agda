@@ -34,3 +34,23 @@ putstr-coloured s n =
   putstr s ；
   putchar ⟪ + 27 ⟫ ；
   putstr "[0m\n"
+
+show : ∀ { α } → Expr α → Statement
+show {Int} e =
+  decl Int λ i →
+  decl Int λ j →
+  decl Bool λ cond →
+  cond ≔ true ；
+  i ≔ e ；
+  if (★ i) < ⟪ + 0 ⟫ then (
+    putstr "-" ；
+    i ≔ ⟪ + 0 ⟫ - (★ i))
+  else
+    nop ；
+  while (★ cond) then (
+    j ≔ (★ i) / ⟪ + 10 ⟫ ；
+    putchar ((★ i) - ((★ j) * ⟪ + 10 ⟫) + ⟪ + 48 ⟫) ；
+    i ≔ ★ j ；
+    cond ≔ ! ((★ i) == ⟪ + 0 ⟫))
+show {Bool} e = if e then putstr "true" else putstr "false"
+show {Array α n} e = nop

@@ -28,26 +28,6 @@ if-equal {Array α n} x y t f =
   ) ；
   if ★ eq then t else f
 
-show : ∀ ⦃ _ : C ⦄ { α } → Expr α → Statement
-show {Int} e =
-  decl Int λ i →
-  decl Int λ j →
-  decl Bool λ cond →
-  cond ≔ true ；
-  i ≔ e ；
-  if (★ i) < ⟪ + 0 ⟫ then (
-    putstr "-" ；
-    i ≔ ⟪ + 0 ⟫ - (★ i))
-  else
-    nop ；
-  while (★ cond) then (
-    j ≔ (★ i) / ⟪ + 10 ⟫ ；
-    putchar ((★ i) - (★ j) + ⟪ + 48 ⟫) ；
-    i ≔ ★ j ；
-    cond ≔ ! ((★ i) == ⟪ + 0 ⟫))
-show {Bool} e = if e then putstr "true" else putstr "false"
-show {Array α n} e = nop
-
 _←⁺_ : ∀ ⦃ _ : C ⦄ { α n } → Ref (Array α n) → Stream α → Statement
 _←⁺_ {α} {n} arr s =
   decl Int λ i →
