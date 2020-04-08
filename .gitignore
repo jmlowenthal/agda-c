@@ -6,3 +6,4 @@ MAlonzo/
 *.o
 *.c
 *.deps
+*.csv
