@@ -49,16 +49,8 @@ benchmark.agda.o: *.agda **/*.agda
 benchmarks.c: benchmark.agda.o
 	./benchmark.agda.o > benchmarks.c
 
-benchmarkslow-%.o: benchmarks.c
-	$(CC) -DBENCHMARK_$* benchmarks.c -o benchmarkslow-$*.o
-
 benchmark-%.o: benchmarks.c
 	$(CC) -O3 -DBENCHMARK_$* benchmarks.c -o benchmark-$*.o
-
-benchmarkslow-%.csv: benchmarkslow-%.o
-#	Sudo required to ensure CAP_SYS_ADMIN permissions
-	sudo perf stat -r $(N) -e task-clock -x , \
-		-o benchmarkslow-$*.csv -- ./benchmarkslow-$*.o
 
 benchmark-%.csv: benchmark-%.o
 #	Sudo required to ensure CAP_SYS_ADMIN permissions
@@ -71,11 +63,6 @@ benchmark.deps: benchmarks.c
 		| { echo "depends-benchmark:" ; sed -r "s/^.{14}(.*)/benchmark-\1.csv/" ; } \
 		| { tr "\n" " " ; echo ; } \
 		| tee benchmark.deps
-	grep -e "#if BENCHMARK_[a-z_\-]*" benchmarks.c \
-		| { echo "depends-benchmarkslow:" ;
-		    sed -r "s/^.{14}(.*)/benchmarkslow-\1.csv/g" ; } \
-		| tr "\n" " " \
-		| tee -a benchmark.deps
 
 include benchmark.deps
 
