@@ -1,5 +1,6 @@
 open import Streams
 open import C
+open import C.Extras
 open import Print.Print
 open import Data.String using (String ; _++_)
 open import IO hiding (return)
@@ -40,8 +41,20 @@ square = map (λ x → x * x)
 sum : ∀ ⦃ _ : C ⦄ → Stream Int → Ref Int → Statement
 sum = fold (λ x y → x + y) ⟪ + 0 ⟫
 
--- _ = {!print-main (nat 10 ▹ square ▹ sum)!}
-
 main =
-  let ex = print-main-return ((iota 0) ▹ filter (λ x → (x / ⟪ + 2 ⟫) == ⟪ + 0 ⟫) ▹ sum) in
-     run (IO.putStr ex)
+  run (IO.putStr ex)
+  where
+    ex = print-main (
+      decl Int λ r →
+      r ← ((nat 100) ▹ filter (λ x → (x % ⟪ + 2 ⟫) == ⟪ + 0 ⟫) ▹ sum) ；
+      decl Int λ x →
+      x ≔ ⟪ + 1 ⟫ ；
+      while (★ x) < (★ r) then (x ≔ ★ x * ⟪ + 10 ⟫) ；
+      x ≔ ★ x / ⟪ + 10 ⟫ ；
+      while (★ x) >= ⟪ + 1 ⟫ then (
+        putchar (⟪ + 48 ⟫ + ((★ r) / (★ x))) ；
+        r ≔ (★ r) % (★ x) ；
+        x ≔ ★ x / ⟪ + 10 ⟫
+      ) ；
+      putnl)
+
