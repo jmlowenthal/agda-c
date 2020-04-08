@@ -37,71 +37,66 @@ open C ⦃ ... ⦄
 
 module Tests ⦃ _ : C ⦄ where
 
-  sum : ∀ { n } → Ref (Array Int n) → Statement
-  sum arr =
-    decl Int λ r →
+  sum : ∀ { n } → Ref Int → Ref (Array Int n) → Statement
+  sum r arr =
     r ← fold _+_ ⟪ + 0 ⟫ (ofArr arr)
 
-  sumOfSquares : ∀ { n } → Ref (Array Int n) → Statement
-  sumOfSquares arr =
-    decl Int λ r →
+  sumOfSquares : ∀ { n } → Ref Int → Ref (Array Int n) → Statement
+  sumOfSquares r arr =
     r ← fold _+_ ⟪ + 0 ⟫
       (ofArr arr
         ▹ map (λ a → a * a))
 
-  sumOfSquaresEven : ∀ { n } → Ref (Array Int n) → Statement
-  sumOfSquaresEven arr =
-    decl Int λ r →
+  sumOfSquaresEven : ∀ { n } → Ref Int → Ref (Array Int n) → Statement
+  sumOfSquaresEven r arr =
     r ← fold _+_ ⟪ + 0 ⟫
       (ofArr arr
         ▹ filter (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫)
         ▹ map (λ a → a * a))
 
   -- Sum over Cartesian-/outer-product
-  cart : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
-  cart x y =
-    decl Int λ r →
+  cart : ∀ { n m } → Ref Int → Ref (Array Int n) → Ref (Array Int m) → Statement
+  cart r x y =
     r ← fold _+_ ⟪ + 0 ⟫
     (ofArr x
       ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
 
-  maps : ∀ { n } → Ref (Array Int n) → Statement
-  maps arr =
-    iter (λ _ → nop)
+  maps : ∀ { n } → Ref Int → Ref (Array Int n) → Statement
+  maps r arr =
+    iter (λ e → r ≔ e)
       (ofArr arr
         ▹ map (λ e → e * ⟪ + 2 ⟫)
         ▹ map (λ e → e * ⟪ + 3 ⟫))
 
-  filters : ∀ { n } → Ref (Array Int n) → Statement
-  filters arr =
-    iter (λ _ → nop)
+  filters : ∀ { n } → Ref Int → Ref (Array Int n) → Statement
+  filters r arr =
+    iter (λ e → r ≔ e)
       (ofArr arr
         ▹ filter (λ e → ! (e == ⟪ + 5 ⟫))
         ▹ filter (λ e → ! (e == ⟪ + 10 ⟫)))
 
-  dotProduct : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
-  dotProduct x y =
-    decl Int λ r →
+  dotProduct : ∀ { n m } → Ref Int → Ref (Array Int n) → Ref (Array Int m) → Statement
+  dotProduct r x y =
     r ← fold _+_ ⟪ + 0 ⟫
       (zipWith (λ i j → i * j) (ofArr x) (ofArr y) {ℕ.z≤n})
 
-  flatmap-after-zipWith : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
-  flatmap-after-zipWith x y =
-    iter (λ _ → nop)
+  flatmap-after-zipWith : ∀ { n m } → Ref Int → Ref (Array Int n) → Ref (Array Int m) → Statement
+  flatmap-after-zipWith r x y =
+    iter (λ e → r ≔ e)
       (zipWith _+_ (ofArr x) (ofArr x) {ℕ.z≤n}
         ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
 
-  zipWith-after-flatmap : ∀ { n } → Ref (Array Int (n ℕ.* n)) → Ref (Array Int n) → Statement
-  zipWith-after-flatmap x y =
-    iter (λ _ → nop)
+  zipWith-after-flatmap : ∀ { n } → Ref Int → Ref (Array Int (n ℕ.* n)) → Ref (Array Int n) → Statement
+  zipWith-after-flatmap r x y =
+    iter (λ e → r ≔ e)
       (zipWith _+_
       (ofArr x)
       (flatmap (λ e → ofArr y ▹ map (λ a → a + e)) (ofArr y))
       {ℕ.s≤s ℕ.z≤n})
 
-  flatmap-take : ∀ { n m } → ℕ → Ref (Array Int n) → Ref (Array Int m) → Statement
-  flatmap-take i x y =
-    iter (λ _ → nop)
+  flatmap-take : ∀ { n m } → ℕ → Ref Int → Ref (Array Int n) → Ref (Array Int m) → Statement
+  flatmap-take i r x y =
+    iter (λ e → r ≔ e)
       (ofArr x
         ▹ flatmap (λ a → ofArr y ▹ map (λ b → a + b))
         ▹ take ⟪ + i ⟫)
@@ -110,11 +105,12 @@ IntArraysFunc : ∀ ⦃ _ : C ⦄ → List ℕ → Set
 IntArraysFunc [] = Statement
 IntArraysFunc (h ∷ t) = Ref (Array Int h) → IntArraysFunc t
 
-benchmark-function : String → ∀ l → (∀ ⦃ _ : C ⦄ → IntArraysFunc l) → String
+benchmark-function : String → ∀ l → (∀ ⦃ _ : C ⦄ → Ref Int → IntArraysFunc l) → String
 benchmark-function name l body =
   "#if BENCHMARK_" ++ name ++ "\n"
   ++ "int main(void){\n"
-    ++ decl-int-arrays l (body ⦃ AST-C ⦄) 0
+    ++ "volatile int " ++ print-ref {Int} (0 , []) ++ ";\n"
+    ++ decl-int-arrays l (body ⦃ AST-C ⦄ (0 , [])) 1
     ++ "return 0;\n"
   ++ "}\n"
   ++ "#endif\n\n"
