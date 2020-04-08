@@ -64,7 +64,9 @@ benchmark.deps: benchmarks.c
 		| { tr "\n" " " ; echo ; } \
 		| tee benchmark.deps
 
-include benchmark.deps
+ifneq (,$(filter benchmark%,$(MAKECMDGOALS)))
+  -include benchmark.deps
+endif
 
 benchmark.csv: depends-benchmark
 	grep ^ /dev/null *.csv \
@@ -77,4 +79,4 @@ benchmark: benchmark.csv
 	{ echo "BENCHMARK,TIME, ,VAR" ; cat benchmark.csv ; } | column -ts,
 
 clean:
-	rm -r MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
+	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
