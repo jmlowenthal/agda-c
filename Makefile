@@ -3,9 +3,10 @@ AGDA_C=agda --compile --ghc-dont-call-ghc -i $(STDLIB)
 GHC=ghc
 GHC_PKGS=-package text -package ghc -O2
 GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
-CC=clang -Wl,-z,stack-size=0x40000000 # 1GB stack
-# Sudo is required here to ensure CAP_SYS_ADMIN permissions
-PERF=sudo perf stat -r 100 --
+CC=clang -O3
+N=1000
+
+.PHONY: all test benchmark benchmark-% clean
 
 all: test main.o
 
@@ -52,7 +53,8 @@ benchmark-%.o: benchmarks.c
 	$(CC) -DBENCHMARK_$* benchmarks.c -o benchmark-$*.o
 
 benchmark-%: benchmark-%.o
-	$(PERF) ./benchmark-$*.o
+	# Sudo is required here to ensure CAP_SYS_ADMIN permissions
+	sudo perf stat -r $(N) -- ./benchmark-$*.o
 
 benchmark.deps: benchmarks.c
 	grep -e "#if BENCHMARK_[a-z_\-]*" benchmarks.c \

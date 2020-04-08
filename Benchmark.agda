@@ -8,6 +8,7 @@ open import Data.Product as Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.String as String using (String ; _++_)
 open import Data.Vec as Vec using (Vec ; _∷_ ; [])
 open import IO
+open import Print.AST using (AST-C)
 open import Print.Print
 open import Streams
 
@@ -36,103 +37,101 @@ open C ⦃ ... ⦄
 
 module Tests ⦃ _ : C ⦄ where
 
-  gen : ∀ n → (Ref (Array Int n) → Statement) → Statement
-  gen n k =
-    decl (Array Int n) λ arr →
-    for ⟪ + 0 ⟫ to ⟪ + n ℤ.- + 1 ⟫ then λ i → (
-      arr [ ★ i ] ≔ (★ i) % ⟪ + 10 ⟫
-    ) ；
-    k arr
+  sum : ∀ { n } → Ref (Array Int n) → Statement
+  sum arr =
+    decl Int λ r →
+    r ← fold _+_ ⟪ + 0 ⟫ (ofArr arr)
 
-  sum : ℕ → Statement
-  sum n =
-    gen n λ arr →
-      decl Int λ r →
-      r ← fold _+_ ⟪ + 0 ⟫ (ofArr arr)
+  sumOfSquares : ∀ { n } → Ref (Array Int n) → Statement
+  sumOfSquares arr =
+    decl Int λ r →
+    r ← fold _+_ ⟪ + 0 ⟫
+      (ofArr arr
+        ▹ map (λ a → a * a))
 
-  sumOfSquares : ℕ → Statement
-  sumOfSquares n =
-    gen n λ arr →
-      decl Int λ r →
-      r ← fold _+_ ⟪ + 0 ⟫
-        (ofArr arr
-          ▹ map (λ a → a * a))
-
-  sumOfSquaresEven : ℕ → Statement
-  sumOfSquaresEven n =
-    gen n λ arr →
-      decl Int λ r →
-      r ← fold _+_ ⟪ + 0 ⟫
-        (ofArr arr
-          ▹ filter (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫)
-          ▹ map (λ a → a * a))
+  sumOfSquaresEven : ∀ { n } → Ref (Array Int n) → Statement
+  sumOfSquaresEven arr =
+    decl Int λ r →
+    r ← fold _+_ ⟪ + 0 ⟫
+      (ofArr arr
+        ▹ filter (λ e → (e % ⟪ + 2 ⟫) == ⟪ + 0 ⟫)
+        ▹ map (λ a → a * a))
 
   -- Sum over Cartesian-/outer-product
-  cart : ℕ → ℕ → Statement
-  cart n m =
-    gen n λ x →
-      gen m λ y →
-        decl Int λ r →
-        r ← fold _+_ ⟪ + 0 ⟫
-        (ofArr x
-          ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
+  cart : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
+  cart x y =
+    decl Int λ r →
+    r ← fold _+_ ⟪ + 0 ⟫
+    (ofArr x
+      ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
 
-  maps : ℕ → Statement
-  maps n =
-    gen n λ arr →
-      iter (λ _ → nop)
-        (ofArr arr
-          ▹ map (λ e → e * ⟪ + 2 ⟫)
-          ▹ map (λ e → e * ⟪ + 3 ⟫))
+  maps : ∀ { n } → Ref (Array Int n) → Statement
+  maps arr =
+    iter (λ _ → nop)
+      (ofArr arr
+        ▹ map (λ e → e * ⟪ + 2 ⟫)
+        ▹ map (λ e → e * ⟪ + 3 ⟫))
 
-  filters : ℕ → Statement
-  filters n =
-    gen n λ arr →
-      iter (λ _ → nop)
-        (ofArr arr
-          ▹ filter (λ e → ! (e == ⟪ + 5 ⟫))
-          ▹ filter (λ e → ! (e == ⟪ + 10 ⟫)))
+  filters : ∀ { n } → Ref (Array Int n) → Statement
+  filters arr =
+    iter (λ _ → nop)
+      (ofArr arr
+        ▹ filter (λ e → ! (e == ⟪ + 5 ⟫))
+        ▹ filter (λ e → ! (e == ⟪ + 10 ⟫)))
 
-  dotProduct : ℕ → ℕ → Statement
-  dotProduct n m =
-    gen n λ x →
-      gen n λ y →
-        decl Int λ r →
-        r ← fold _+_ ⟪ + 0 ⟫
-          (zipWith (λ i j → i * j) (ofArr x) (ofArr y) {ℕ.z≤n})
+  dotProduct : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
+  dotProduct x y =
+    decl Int λ r →
+    r ← fold _+_ ⟪ + 0 ⟫
+      (zipWith (λ i j → i * j) (ofArr x) (ofArr y) {ℕ.z≤n})
 
-  flatmap-after-zipWith : ℕ → ℕ → Statement
-  flatmap-after-zipWith n m =
-    gen n λ x →
-      gen n λ y →
-        iter (λ _ → nop)
-          (zipWith _+_ (ofArr x) (ofArr x) {ℕ.z≤n}
-            ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
+  flatmap-after-zipWith : ∀ { n m } → Ref (Array Int n) → Ref (Array Int m) → Statement
+  flatmap-after-zipWith x y =
+    iter (λ _ → nop)
+      (zipWith _+_ (ofArr x) (ofArr x) {ℕ.z≤n}
+        ▹ flatmap (λ i → ofArr y ▹ map (λ j → i * j)))
 
-  zipWith-after-flatmap : ℕ → Statement
-  zipWith-after-flatmap n =
-    gen (n ℕ.* n) λ x →
-      gen n λ y →
-        iter (λ _ → nop)
-          (zipWith _+_
-          (ofArr x)
-          (flatmap (λ e → ofArr y ▹ map (λ a → a + e)) (ofArr y))
-          {ℕ.s≤s ℕ.z≤n})
+  zipWith-after-flatmap : ∀ { n } → Ref (Array Int (n ℕ.* n)) → Ref (Array Int n) → Statement
+  zipWith-after-flatmap x y =
+    iter (λ _ → nop)
+      (zipWith _+_
+      (ofArr x)
+      (flatmap (λ e → ofArr y ▹ map (λ a → a + e)) (ofArr y))
+      {ℕ.s≤s ℕ.z≤n})
 
-  flatmap-take : ℕ → ℕ → ℕ → Statement
-  flatmap-take n m i =
-    gen n λ x →
-      gen m λ y →
-        iter (λ _ → nop)
-          (ofArr x
-            ▹ flatmap (λ a → ofArr y ▹ map (λ b → a + b))
-            ▹ take ⟪ + i ⟫)
+  flatmap-take : ∀ { n m } → ℕ → Ref (Array Int n) → Ref (Array Int m) → Statement
+  flatmap-take i x y =
+    iter (λ _ → nop)
+      (ofArr x
+        ▹ flatmap (λ a → ofArr y ▹ map (λ b → a + b))
+        ▹ take ⟪ + i ⟫)
 
-benchmark-function : String → (∀ ⦃ _ : C ⦄ → Statement) → String
-benchmark-function name body = 
+IntArraysFunc : ∀ ⦃ _ : C ⦄ → List ℕ → Set
+IntArraysFunc [] = Statement
+IntArraysFunc (h ∷ t) = Ref (Array Int h) → IntArraysFunc t
+
+benchmark-function : String → ∀ l → (∀ ⦃ _ : C ⦄ → IntArraysFunc l) → String
+benchmark-function name l body =
   "#if BENCHMARK_" ++ name ++ "\n"
-  ++ print-func (just Int) "main" [] (λ r → body ； r ≔ ⟪ + 0 ⟫)
+  ++ "int main(void){\n"
+    ++ decl-int-arrays l (body ⦃ AST-C ⦄) 0
+    ++ "return 0;\n"
+  ++ "}\n"
   ++ "#endif\n\n"
+  where
+    init : ∀ ⦃ _ : C ⦄ n → Ref (Array Int n) → Statement
+    init n ref =
+      for ⟪ + 0 ⟫ to ⟪ + n ℤ.- + 1 ⟫ then λ i → (
+        ref [ ★ i ] ≔ (★ i) % ⟪ + 10 ⟫
+      )
+    decl-int-arrays : ∀ l → IntArraysFunc ⦃ AST-C ⦄ l → ℕ → String
+    decl-int-arrays [] k n = print-statement (proj₂ (k n))
+    decl-int-arrays (h ∷ t) k n =
+      let m , initialiser = init ⦃ AST-C ⦄ h (n , []) (ℕ.suc n) in
+        "/* INT[" ++ ℕs.show h ++ "] */ int* " ++ print-ref {Int} (n , [])
+          ++ " = malloc(" ++ ℕs.show h ++ " * sizeof(int));\n"
+        ++ print-statement initialiser
+        ++ decl-int-arrays t (k (n , [])) m
 
 main =
   run (IO.putStr ex)
@@ -143,33 +142,17 @@ main =
     ex : String
     ex =
       "#include <stdio.h>\n"
-      ++
-        (benchmark-function "sum"
-          (Tests.sum 100M))
-      ++
-        (benchmark-function "sumOfSquares"
-          (Tests.sumOfSquares 100M))
-      ++
-        (benchmark-function "sumOfSquaresEven"
-          (Tests.sumOfSquaresEven 100M))
-      ++
-        (benchmark-function "cart"
-          (Tests.cart 10M 10))
-      ++
-        (benchmark-function "maps"
-          (Tests.maps 100M))
-      ++
-        (benchmark-function "filters"
-          (Tests.filters 100M))
-      ++
-        (benchmark-function "dotProduct"
-          (Tests.dotProduct 10M 10M))
-      ++
-        (benchmark-function "flatmap_after_zipWith"
-          (Tests.flatmap-after-zipWith 10K 10K))
-      ++
-        (benchmark-function "zipWith_after_flatmap"
-          (Tests.zipWith-after-flatmap 10K))
-      ++
-        (benchmark-function "flatmap_take"
-          (Tests.flatmap-take 10K 10K ((10K ℕ.* 10K) ℕ÷./ 5)))
+      ++ "#include <stdlib.h>\n"
+      ++ (benchmark-function "sum" (100M ∷ []) Tests.sum)
+      ++ (benchmark-function "sumOfSquares" (100M ∷ []) Tests.sumOfSquares)
+      ++ (benchmark-function "sumOfSquaresEven" (100M ∷ []) Tests.sumOfSquaresEven)
+      ++ (benchmark-function "cart" (10M ∷ 10 ∷ []) Tests.cart)
+      ++ (benchmark-function "maps" (100M ∷ []) Tests.maps)
+      ++ (benchmark-function "filters" (100M ∷ []) Tests.filters)
+      ++ (benchmark-function "dotProduct" (10M ∷ 10M ∷ []) Tests.dotProduct)
+      ++ (benchmark-function "flatmap_after_zipWith" (10K ∷ 10K ∷ [])
+            Tests.flatmap-after-zipWith)
+      ++ (benchmark-function "zipWith_after_flatmap" (_ ∷ 10K ∷ [])
+            Tests.zipWith-after-flatmap)
+      ++ (benchmark-function "flatmap_take" (10K ∷ 10K ∷ [])
+            (Tests.flatmap-take ((10K ℕ.* 10K) ℕ÷./ 5)))
