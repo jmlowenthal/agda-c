@@ -4,9 +4,9 @@ GHC=ghc
 GHC_PKGS=-package text -package ghc -O2
 GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
 CC=clang
-N=10
+N=100
 
-.PHONY: all test benchmark benchmark-% clean
+.PHONY: all test benchmark benchmark-% clean depends-benchmark
 
 all: test main.o
 
@@ -54,7 +54,7 @@ benchmark-%.o: benchmarks.c
 
 benchmark-%.csv: benchmark-%.o
 #	Sudo required to ensure CAP_SYS_ADMIN permissions
-	sudo perf stat -r $(N) -e task-clock -x , \
+	sudo perf stat -r $(N) -x , \
 		-o benchmark-$*.csv -- ./benchmark-$*.o
 
 # Generates benchmark and benchmarkslow rules
@@ -69,14 +69,14 @@ ifneq (,$(filter benchmark%,$(MAKECMDGOALS)))
 endif
 
 benchmark.csv: depends-benchmark
-	grep ^ /dev/null *.csv \
+	@grep ^ /dev/null *.csv \
 		| grep "^benchmark-.*.csv" \
 		| grep "task-clock" \
 		| sed -r "s/^benchmark-(.*).csv:(.*),task-clock.*,([0-9\.]*%).*/\1,\2,\3/" \
 		| tee benchmark.csv > /dev/null
 
 benchmark: benchmark.csv
-	{ echo "BENCHMARK,TIME, ,VAR" ; cat benchmark.csv ; } | column -ts,
+	@{ echo "BENCHMARK,TIME, ,VAR" ; cat benchmark.csv ; } | column -ts,
 
 clean:
 	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
