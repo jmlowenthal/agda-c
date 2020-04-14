@@ -1,10 +1,10 @@
 STDLIB=/usr/share/agda-stdlib/
 AGDA_C=agda --compile --ghc-dont-call-ghc -i $(STDLIB)
-GHC=ghc
-AGDA_GHC_PKGS=-package text -package ghc -O2
+GHC=ghc -O3
+AGDA_GHC_PKGS=-package text -package ghc
 AGDA_GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
-CC=clang
-N=100
+CC=clang -O3
+N=2
 
 .PHONY: all test benchmark benchmark-% clean depends-benchmark
 
@@ -50,10 +50,10 @@ benchmark.c: benchmark.agda.o
 	./benchmark.agda.o > benchmark.c
 
 benchmark-staged-%.o: benchmark.c
-	$(CC) -O3 -DBENCHMARK_$* benchmark.c -o benchmark-staged-$*.o
+	$(CC) -DBENCHMARK_$* benchmark.c -o benchmark-staged-$*.o
 
 benchmark-haskell-%.o: src/Benchmark.hs
-	$(GHC) -O3 -DEXTERNAL_PACKAGE -DBENCHMARK_$* -ilib/stream-fusion-0.1.2.5 \
+	$(GHC) -DEXTERNAL_PACKAGE -DBENCHMARK_$* -ilib/stream-fusion-0.1.2.5 \
 		src/Benchmark.hs -o benchmark-haskell-$*.o
 
 benchmark-%.csv: benchmark-%.o
@@ -63,14 +63,14 @@ benchmark-%.csv: benchmark-%.o
 
 # Generates benchmark and benchmarkslow rules
 benchmark-staged.deps: benchmark.c
-	grep -e "#if BENCHMARK_[a-z_\-]*" benchmark.c \
+	grep -e "^#if BENCHMARK_[a-z_\-]*" benchmark.c \
 		| { echo "depends-benchmark-staged:" \
 		  ; sed -r "s/^.{14}(.*)/benchmark-staged-\1.csv/" ; } \
 		| { tr "\n" " " ; echo ; } \
 		| tee benchmark-staged.deps
 
 benchmark-haskell.deps: src/Benchmark.hs
-	grep -e "#if BENCHMARK_[a-z_\-]*" src/Benchmark.hs \
+	grep -e "^#if BENCHMARK_[a-z_\-]*" src/Benchmark.hs \
 		| { echo "depends-benchmark-haskell:" \
 		  ; sed -r "s/^.{14}(.*)/benchmark-haskell-\1.csv/" ; } \
 		| { tr "\n" " " ; echo ; } \
@@ -85,7 +85,7 @@ benchmark.csv: depends-benchmark-staged depends-benchmark-haskell
 	@grep ^ /dev/null *.csv \
 		| grep "^benchmark-.*.csv" \
 		| grep "task-clock" \
-		| sed -r "s/^benchmark-(.*).csv:(.*),task-clock.*,([0-9\.]*%).*/\1,\2,\3/" \
+		| sed -r "s/^benchmark-(.*)\.csv:(.*),task-clock.*,([0-9\.]*%).*/\1,\2,\3/" \
 		| tee benchmark.csv > /dev/null
 
 benchmark: benchmark.csv
