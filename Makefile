@@ -4,7 +4,7 @@ GHC=ghc -O3
 AGDA_GHC_PKGS=-package text -package ghc
 AGDA_GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
 CC=clang -O3
-N=2
+N=10
 
 .PHONY: all test benchmark benchmark-% clean depends-benchmark
 
@@ -52,6 +52,9 @@ benchmark.c: benchmark.agda.o
 benchmark-staged-%.o: benchmark.c
 	$(CC) -DBENCHMARK_$* benchmark.c -o benchmark-staged-$*.o
 
+benchmark-byhand-%.o: src/Benchmark.c
+	$(CC) -DBENCHMARK_$* src/Benchmark.c -o benchmark-byhand-$*.o
+
 benchmark-haskell-%.o: src/Benchmark.hs
 	$(GHC) -DEXTERNAL_PACKAGE -DBENCHMARK_$* -ilib/stream-fusion-0.1.2.5 \
 		src/Benchmark.hs -o benchmark-haskell-$*.o
@@ -76,12 +79,20 @@ benchmark-haskell.deps: src/Benchmark.hs
 		| { tr "\n" " " ; echo ; } \
 		| tee benchmark-haskell.deps
 
+benchmark-byhand.deps: src/Benchmark.c
+	grep -e "^#if BENCHMARK_[a-z_\-]*" src/Benchmark.c \
+		| { echo "depends-benchmark-byhand:" \
+		  ; sed -r "s/^.{14}(.*)/benchmark-byhand-\1.csv/" ; } \
+		| { tr "\n" " " ; echo ; } \
+		| tee benchmark-byhand.deps
+
 ifneq (,$(filter benchmark%,$(MAKECMDGOALS)))
   include benchmark-staged.deps
   include benchmark-haskell.deps
+  include benchmark-byhand.deps
 endif
 
-benchmark.csv: depends-benchmark-staged depends-benchmark-haskell
+benchmark.csv: depends-benchmark-staged depends-benchmark-byhand
 	@grep ^ /dev/null *.csv \
 		| grep "^benchmark-.*.csv" \
 		| grep "task-clock" \
