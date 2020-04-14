@@ -92,7 +92,7 @@ ifneq (,$(filter benchmark%,$(MAKECMDGOALS)))
   include benchmark-byhand.deps
 endif
 
-benchmark.csv: depends-benchmark-staged depends-benchmark-byhand
+benchmark.csv: depends-benchmark-staged depends-benchmark-haskell depends-benchmark-byhand
 	@grep ^ /dev/null *.csv \
 		| grep "^benchmark-.*.csv" \
 		| grep "task-clock" \
