@@ -10,8 +10,8 @@ N=100
 
 all: test main.o
 
-main.agda.o: *.agda **/*.agda
-	$(AGDA_C) Main.agda
+main.agda.o: src/*.agda src/**/*.agda
+	cd src/ && $(AGDA_C) --compile-dir=.. Main.agda
 	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
 		MAlonzo/Code/Main.hs \
 		-main-is MAlonzo.Code.Main \
@@ -23,8 +23,8 @@ main.c: main.agda.o
 main.o: main.c
 	$(CC) main.c -o main.o
 
-test.agda.o: *.agda **/*.agda
-	$(AGDA_C) Test.agda
+test.agda.o: src/*.agda src/**/*.agda
+	cd src/ && $(AGDA_C) --compile-dir=.. Test.agda
 	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
 		MAlonzo/Code/Test.hs \
 		-main-is MAlonzo.Code.Test \
@@ -39,8 +39,8 @@ test.o: test.c
 test: test.o
 	./test.o
 
-benchmark.agda.o: *.agda **/*.agda
-	$(AGDA_C) Benchmark.agda
+benchmark.agda.o: src/*.agda src/**/*.agda
+	cd src/ && $(AGDA_C) --compile-dir=.. Benchmark.agda
 	$(GHC) $(GHC_PKGS) $(GHC_FLAGS) \
 		MAlonzo/Code/Benchmark.hs \
 		-main-is MAlonzo.Code.Benchmark \
