@@ -62,7 +62,7 @@ benchmark-haskell-%.o: src/Benchmark.hs
 benchmark-%.csv: benchmark-%.o
 #	Sudo required to ensure CAP_SYS_ADMIN permissions
 	sudo perf stat -r $(N) -x , \
-		-o benchmark-$*.csv -- ./benchmark-$*.o
+		-o benchmark-$*.csv -- ./benchmark-$*.o > /dev/null
 
 # Generates benchmark and benchmarkslow rules
 benchmark-staged.deps: benchmark.c
