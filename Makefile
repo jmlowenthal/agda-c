@@ -99,7 +99,7 @@ benchmark.csv: depends-benchmark-staged depends-benchmark-haskell depends-benchm
 		| tee benchmark.csv > /dev/null
 
 benchmark: benchmark.csv
-	@{ echo "TEST SET,BENCHMARK,TIME, ,VAR" ; cat benchmark.csv | sort ; } | column -ts,
+	@{ echo "BENCHMARK,TEST SET,TIME, ,VAR" ; cat benchmark.csv | sort ; } | column -ts,
 
 clean:
 	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
