@@ -9,3 +9,4 @@ MAlonzo/
 !src/*.c
 *.deps
 *.csv
+*.log

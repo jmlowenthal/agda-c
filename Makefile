@@ -64,6 +64,13 @@ benchmark-%.csv: benchmark-%.o
 	sudo perf stat -r $(N) -x , \
 		-o benchmark-$*.csv -- ./benchmark-$*.o > /dev/null
 
+benchmark-%.log: benchmark-%.o
+	./benchmark-$*.o > benchmark-$*.log
+
+test-benchmark-%: benchmark-staged-%.log benchmark-haskell-%.log benchmark-byhand-%.log
+	diff -q --from-file=benchmark-byhand-$*.log \
+		benchmark-staged-$*.log benchmark-haskell-$*.log
+
 benchmark-staged.deps: benchmark.c
 	grep -e "^#if BENCHMARK_[a-z_\-]*" benchmark.c \
 		| { echo "depends-benchmark-staged:" \
@@ -85,10 +92,22 @@ benchmark-byhand.deps: src/Benchmark.c
 		| { tr "\n" " " ; echo ; } \
 		| tee benchmark-byhand.deps
 
-ifneq (,$(filter benchmark%,$(MAKECMDGOALS)))
+benchmark-test.deps: benchmark-staged.deps benchmark-haskell.deps benchmark-byhand.deps
+	cat benchmark-staged.deps benchmark-haskell.deps benchmark-byhand.deps \
+		| sed -r "s/^[^:]*:\s//; s/benchmark-[a-z]*-([a-zA-Z\-_]*)\.csv\s/\1\n/g" \
+		| sort \
+		| uniq -c \
+		| grep -e "^\s*3\s..*" \
+		| { echo "depends-benchmark-test:" \
+		  ; sed -r "s/^\s*3\s*(.*)/test-benchmark-\1/" ; } \
+		| tr "\n" " " \
+		| tee benchmark-test.deps
+
+ifneq (,$(filter benchmark benchmark.csv test-benchmark,$(MAKECMDGOALS)))
   include benchmark-staged.deps
   include benchmark-haskell.deps
   include benchmark-byhand.deps
+  include benchmark-test.deps
 endif
 
 benchmark.csv: depends-benchmark-staged depends-benchmark-haskell depends-benchmark-byhand
@@ -100,6 +119,8 @@ benchmark.csv: depends-benchmark-staged depends-benchmark-haskell depends-benchm
 
 benchmark: benchmark.csv
 	@{ echo "BENCHMARK,TEST SET,TIME, ,VAR" ; cat benchmark.csv | sort ; } | column -ts,
+
+test-benchmark: depends-benchmark-test
 
 clean:
 	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
