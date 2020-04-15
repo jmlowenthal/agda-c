@@ -36,8 +36,8 @@ C._<=_ Print-C x y = "(" ++ x ++ ") <= (" ++ y ++ ")"
 C._>_ Print-C x y = "(" ++ x ++ ") > (" ++ y ++ ")"
 C._>=_ Print-C x y = "(" ++ x ++ ") >= (" ++ y ++ ")"
 C._==_ Print-C x y = "(" ++ x ++ ") == (" ++ y ++ ")"
-C.true Print-C = "true"
-C.false Print-C = "false"
+C.true Print-C = "1"
+C.false Print-C = "0"
 C._||_ Print-C x y = "(" ++ x ++ ") || (" ++ y ++ ")"
 C._&&_ Print-C x y = "(" ++ x ++ ") && (" ++ y ++ ")"
 C.!_ Print-C x = "!(" ++ x ++ ")"
@@ -49,7 +49,7 @@ C._≔_ Print-C x y n = n , x ++ " = " ++ y ++ ";\n"
 C.if_then_else_ Print-C e x y n =
   let n , x = x n in
   let n , y = y n in
-    n , "if (" ++ e ++ ") {\n" ++ x ++ "}\nelse\n{" ++ y ++ "}\n"
+    n , "if (" ++ e ++ ") {\n" ++ x ++ "}\nelse\n{\n" ++ y ++ "}\n"
 C._；_ Print-C x y n =
   let n , x = x n in
   let n , y = y n in
