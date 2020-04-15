@@ -64,7 +64,6 @@ benchmark-%.csv: benchmark-%.o
 	sudo perf stat -r $(N) -x , \
 		-o benchmark-$*.csv -- ./benchmark-$*.o > /dev/null
 
-# Generates benchmark and benchmarkslow rules
 benchmark-staged.deps: benchmark.c
 	grep -e "^#if BENCHMARK_[a-z_\-]*" benchmark.c \
 		| { echo "depends-benchmark-staged:" \
