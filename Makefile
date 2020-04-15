@@ -95,11 +95,11 @@ benchmark.csv: depends-benchmark-staged depends-benchmark-haskell depends-benchm
 	@grep ^ /dev/null *.csv \
 		| grep "^benchmark-.*.csv" \
 		| grep "task-clock" \
-		| sed -r "s/^benchmark-(.*)\.csv:(.*),task-clock.*,([0-9\.]*%).*/\1,\2,\3/" \
+		| sed -r "s/^benchmark-(.*)-(.*)\.csv:(.*),task-clock.*,([0-9\.]*%).*/\2,\1,\3,\3/" \
 		| tee benchmark.csv > /dev/null
 
 benchmark: benchmark.csv
-	@{ echo "BENCHMARK,TIME, ,VAR" ; cat benchmark.csv ; } | column -ts,
+	@{ echo "TEST SET,BENCHMARK,TIME, ,VAR" ; cat benchmark.csv | sort ; } | column -ts,
 
 clean:
 	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
