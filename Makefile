@@ -4,7 +4,7 @@ GHC=ghc -O2 -optc-O3
 AGDA_GHC_PKGS=-package text -package ghc
 AGDA_GHC_FLAGS=-fwarn-incomplete-patterns -fno-warn-overlapping-patterns -XGADTs
 CC=clang -O3
-N=50
+N=10
 
 .PHONY: all test benchmark benchmark-% clean depends-benchmark
 
@@ -123,4 +123,4 @@ benchmark: benchmark.csv
 test-benchmark: depends-benchmark-test
 
 clean:
-	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv *.log
+	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
