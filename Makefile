@@ -123,4 +123,4 @@ benchmark: benchmark.csv
 test-benchmark: depends-benchmark-test
 
 clean:
-	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv
+	rm -rf MAlonzo *.agdai **/*.agdai *.c *.o *.deps *.csv *.log
