@@ -143,7 +143,7 @@ record Semantics : Set₁ where
       → { v : ⟦ α ⟧ } { w : ⟦ β ⟧ } { e : Expr γ } { ev : ⟦ γ ⟧ }
       → (E ⊕ (x Env.↦ v , (y Env.↦ w , ε)) ⊕ E') ⊢ e ⇒ ev
       → (E ⊕ (y Env.↦ w , (x Env.↦ v , ε)) ⊕ E') ⊢ e ⇒ ev
-    -- TODO: variants on Env constructor
+    -- TODO: variants on Env constructor (and x ≢ y and α ≢ β)
     nat : ∀ { E } n → E ⊢ ⟪ n ⟫ ⇒ n
     deref : ∀ { E α } { x : Ref α } { v : ⟦ α ⟧ }
       → x ↦ v ∈nv E → (E ⊢ (★ x) ⇒ v)
