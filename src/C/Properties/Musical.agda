@@ -139,8 +139,9 @@ record Semantics : Set₁ where
     ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
       → { _ : x ∉nv E × x ∉nv E' }
       → (E ⊕ E') ⊢ e ⇒ v → (E ⊕ (x Env.↦ w , ε) ⊕ E') ⊢ e ⇒ v
-    ⊢-exchange : ∀ { E E' α β γ } { x : Ref α } { y : Ref β }
-      → { v : ⟦ α ⟧ } { w : ⟦ β ⟧ } { e : Expr γ } { ev : ⟦ γ ⟧ }
+    ⊢-exchange : ∀ { E E' α γ } { x : Ref α } { y : Ref α }
+      → { v : ⟦ α ⟧ } { w : ⟦ α ⟧ } { e : Expr γ } { ev : ⟦ γ ⟧ }
+      → ¬ (x ≡ y)
       → (E ⊕ (x Env.↦ v , (y Env.↦ w , ε)) ⊕ E') ⊢ e ⇒ ev
       → (E ⊕ (y Env.↦ w , (x Env.↦ v , ε)) ⊕ E') ⊢ e ⇒ ev
     -- TODO: variants on Env constructor (and x ≢ y and α ≢ β)
