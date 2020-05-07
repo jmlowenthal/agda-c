@@ -137,7 +137,7 @@ record Semantics : Set₁ where
     ⊢-total : ∀ { α E } { e : Expr α } → ∃[ v ] (E ⊢ e ⇒ v) -- should ensure no free variables
     ⊢-det : ∀ { α E } { e : Expr α } { v w : ⟦ α ⟧ } → E ⊢ e ⇒ v → E ⊢ e ⇒ w → v ≡ w 
     ⊢-weakening : ∀ { E E' α β } { e : Expr α } { v : ⟦ α ⟧ } { x : Ref β } { w : ⟦ β ⟧ }
-      → { _ : x ∉nv E × x ∉nv E' }
+      → x ∉nv E → x ∉nv E'
       → (E ⊕ E') ⊢ e ⇒ v → (E ⊕ (x Env.↦ w , ε) ⊕ E') ⊢ e ⇒ v
     ⊢-exchange : ∀ { E E' α γ } { x : Ref α } { y : Ref α }
       → { v : ⟦ α ⟧ } { w : ⟦ α ⟧ } { e : Expr γ } { ev : ⟦ γ ⟧ }
