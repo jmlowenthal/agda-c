@@ -5,7 +5,7 @@ open import Data.Maybe
 open import Data.Product
 open import Data.Sum
 open import Data.Unit
-open import Data.List using (List)
+open import Data.List using (List ; _∷_ ; [])
 open import Function using (id ; _∘_)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
@@ -212,11 +212,11 @@ record Semantics : Set₁ where
     ↝-assignment : ∀ { i E k α } { id : Ref α } { e : Expr α } { v : ⟦ α ⟧ }
       → E ⊢ e ⇒ v → i ⊢ 𝒮 (id ≔ e) k E ~[ τ ]↝ 𝒮 nop k (id Env.↦ v , E) --TODO sideeffect
     ↝-seq : ∀ { i E k } { s₁ s₂ : Statement }
-      → i ⊢ 𝒮 (s₁ ； s₂) k E ~[ τ ]↝ 𝒮 s₁ (s₂ then k) E
+      → i ⊢ 𝒮 (s₁ ； s₂) k E ~[ τ ]↝ 𝒮 s₁ (s₂ ∷ k) E
     ↝-decl : ∀ { i E k α } { f : Ref α → Statement }
       → ∃ λ (x : Ref α) → (x ∉nv E) × (i ⊢ 𝒮 (decl α f) k E ~[ τ ]↝ 𝒮 (f x) k (x , E))
-    ↝-nop : ∀ { i E k } { s : Statement } → i ⊢ 𝒮 nop (s then k) E ~[ τ ]↝ 𝒮 s k E
-    ↝-stuck : ∀ { i E } → ¬ ∃[ S' ] (i ⊢ 𝒮 nop stop E ~[ τ ]↝ S')
+    ↝-nop : ∀ { i E k } { s : Statement } → i ⊢ 𝒮 nop (s ∷ k) E ~[ τ ]↝ 𝒮 s k E
+    ↝-stuck : ∀ { i E } → ¬ ∃[ S' ] (i ⊢ 𝒮 nop [] E ~[ τ ]↝ S')
     ↝-for : ∀ { i E k } { l u : Expr Int } { f : Ref Int → Statement } { x : Ref Int }
       → i ⊢ 𝒮 (for l to u then f) k E
         ~[ τ ]↝ 𝒮 (if (l < u) then (
@@ -228,7 +228,7 @@ record Semantics : Set₁ where
     ↝-putchar : ∀ { i E k } { e : Expr Int } { v : ℤ.ℤ }
       → E ⊢ e ⇒ v → i ⊢ 𝒮 (putchar e) k E ~[ emit v ]↝ 𝒮 nop k E
     ↝-det : ∀ { i S S₁ S₂ e f } → i ⊢ S ~[ e ]↝ S₁ → i ⊢ S ~[ f ]↝ S₂ → e ≡ f × S₁ ≡ S₂
-    ↝-progress : ∀ {i} (x k E) → (x ≡ nop × k ≡ stop) ⊎ (∃[ S' ] (i ⊢ 𝒮 x k E ~[ τ ]↝ S'))
+    ↝-progress : ∀ { i x k E } → ∃[ S' ] (i ⊢ 𝒮 x k E ~[ τ ]↝ S')
 
   infix 0 _≅ₑ_
   _≅ₑ_ : ∀ { α } → Rel (Expr α) Level.zero
