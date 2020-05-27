@@ -31,10 +31,10 @@ open ≡-Reasoning
 
 -- EXPRESSION EQUIVALENCE
 
-+-left-id : LeftIdentity _≅ₑ_ (⟪ + 0 ⟫) _+_
++-left-id : ∀ (x : Expr Int) → ⟪ + 0 ⟫ + x ≅ₑ x
 +-left-id e {E} {v} {w} 0+e⇒v e⇒w =
-  let 0+e⇒0+w = +-eval (nat (+ 0)) e⇒w in
-  let v≡0+w = ⊢-det 0+e⇒v 0+e⇒0+w in
+  let 0+e⇒0+w = +-eval (nat (+ 0)) e⇒w
+      v≡0+w = ⊢-det 0+e⇒v 0+e⇒0+w in
   begin
     v
     ≡⟨ v≡0+w ⟩
