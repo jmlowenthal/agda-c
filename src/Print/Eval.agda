@@ -19,6 +19,7 @@ open import Function
 import Data.Integer.Properties as ℤₚ
 import Data.Integer.DivMod as ℤ÷
 import Data.Nat as ℕ
+import Data.Char as Char
 import Level
 
 divide : ℤ → ℤ → ℤ
@@ -61,7 +62,7 @@ E0 {Array α (ℕ.suc n)} _ = E0 {α} (var 0) ∷ E0 (var 0)
 Eval-C : C
 C.Ref Eval-C α = Envir → Refer α
 C.Expr Eval-C α = Envir → ⟦ α ⟧
-C.Statement Eval-C = (ℕ × Envir) → (ℕ × Envir)
+C.Statement Eval-C = (String × ℕ × Envir) → (String × ℕ × Envir)
 C.⟪_⟫ Eval-C x _ = x
 C._+_ Eval-C x y E = x E ℤ.+ y E
 C._*_ Eval-C x y E = x E ℤ.* y E
@@ -82,19 +83,19 @@ C.★_ Eval-C x E = E (x E)
 C._⁇_∷_ Eval-C c x y E with c E
 ... | true = x E
 ... | false = y E
-C._≔_ Eval-C x y (n , E) = n , env
+C._≔_ Eval-C x y (s , n , E) = s , n , env
   where
     env : Envir
     env r with ≟-Refer (_ , r) (_ , x E)
     ... | yes refl = y E
     ... | no _ = E r
-C.if_then_else_ Eval-C e x y (n , E) with e E
-... | true = x (n , E)
-... | false = y (n , E)
-C._；_ Eval-C x y (n , E) = y (x (n , E))
-C.decl Eval-C α f (n , E) = f (λ _ → var n) (ℕ.suc n , E)
+C.if_then_else_ Eval-C e x y (s , n , E) with e E
+... | true = x (s , n , E)
+... | false = y (s , n , E)
+C._；_ Eval-C x y (s , n , E) = y (x (s , n , E))
+C.decl Eval-C α f (s , n , E) = f (λ _ → var n) (s , ℕ.suc n , E)
 C.nop Eval-C = id
-C.for_to_then_ Eval-C l u f (n , E) = iter (u E) (u E ℤ.- l E) (ℕ.suc n , E)
+C.for_to_then_ Eval-C l u f (s , n , E) = iter (u E) (u E ℤ.- l E) (s , ℕ.suc n , E)
   where
     env : ℤ → Envir → Envir
     env _ E r@(index _ _) = E r
@@ -103,10 +104,11 @@ C.for_to_then_ Eval-C l u f (n , E) = iter (u E) (u E ℤ.- l E) (ℕ.suc n , E)
     env x E {Int} r@(var i) with i ℕ.≟ n
     ... | yes refl = x
     ... | no _ = E r
-    iter : ℤ → ℤ → ℕ × Envir → ℕ × Envir
+    iter : ℤ → ℤ → String × ℕ × Envir → String × ℕ × Envir
     iter base (ℤ.negsuc _) = id
     iter base (ℤ.pos ℕ.zero) = id
-    iter base j@(ℤ.pos (ℕ.suc i)) (m , E) =
-      iter base (ℤ.pos i) (f (λ _ → var n) (m , env (base ℤ.- j) E))
-C.while_then_ Eval-C e f (n , E) = {!!}
-C.putchar Eval-C x = id
+    iter base j@(ℤ.pos (ℕ.suc i)) (s , m , E) =
+      iter base (ℤ.pos i) (f (λ _ → var n) (s , m , env (base ℤ.- j) E))
+C.while_then_ Eval-C e f = id
+C.putchar Eval-C x (s , n , E) =
+  s Data.String.++ fromChar (Char.fromℕ ℤ.∣ (x E) ℤ.⊔ (ℤ.+ 0) ∣) , n , E

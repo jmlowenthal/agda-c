@@ -7,7 +7,6 @@ open import Data.Nat as ℕ using (ℕ ; suc)
 open import Data.Product
 open import Data.String
 open import Function using (_∘_)
-open import Print.AST
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -88,3 +87,12 @@ print-main s =
     ++ print s
     ++ "return 0;\n"
  ++ "}\n"
+
+eg : ∀ ⦃ _ : C ⦄ → Statement
+eg = 
+  decl Int λ x →
+  x ≔ ⟪ ℤ.+ 65 ⟫ ；
+  putchar (★ x)
+
+import Print.Eval
+_ = {!eg ⦃ Print.Eval.Eval-C ⦄ ("" , 0 , Print.Eval.E0)!}
