@@ -109,6 +109,6 @@ C.for_to_then_ Eval-C l u f (s , n , E) = iter (u E) (u E ℤ.- l E) (s , ℕ.su
     iter base (ℤ.pos ℕ.zero) = id
     iter base j@(ℤ.pos (ℕ.suc i)) (s , m , E) =
       iter base (ℤ.pos i) (f (λ _ → var n) (s , m , env (base ℤ.- j) E))
-C.while_then_ Eval-C e f = id
+C.while_then_ Eval-C e f = ?
 C.putchar Eval-C x (s , n , E) =
   s Data.String.++ fromChar (Char.fromℕ ℤ.∣ (x E) ℤ.⊔ (ℤ.+ 0) ∣) , n , E

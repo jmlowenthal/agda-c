@@ -88,11 +88,3 @@ print-main s =
     ++ "return 0;\n"
  ++ "}\n"
 
-eg : ∀ ⦃ _ : C ⦄ → Statement
-eg = 
-  decl Int λ x →
-  x ≔ ⟪ ℤ.+ 65 ⟫ ；
-  putchar (★ x)
-
-import Print.Eval
-_ = {!eg ⦃ Print.Eval.Eval-C ⦄ ("" , 0 , Print.Eval.E0)!}
