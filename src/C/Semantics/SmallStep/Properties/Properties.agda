@@ -1,5 +1,5 @@
 open import Algebra.FunctionProperties
-open import C
+open import C.Lang
 open import C.Properties.Musical
 open import C.Properties.State
 open import Codata.Musical.Colist as Colist
@@ -22,7 +22,7 @@ open import Size
 import Level
 import Codata.Musical.Conat as Coℕ
 
-module C.Properties.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
+module C.Semantics.SmallStep.Properties.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
 
 open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄

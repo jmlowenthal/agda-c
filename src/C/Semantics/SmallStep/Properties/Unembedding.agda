@@ -1,8 +1,8 @@
 -- Based on https://www.cl.cam.ac.uk/~jdy22/papers/unembedding.pdf
 
-module C.Properties.Unembedding where
+module C.Semantics.SmallStep.Properties.Unembedding where
 
-open import C
+open import C.Lang
 
 open import Data.Bool using () renaming (Bool to 𝔹 ; true to True ; false to False)
 open import Data.Empty

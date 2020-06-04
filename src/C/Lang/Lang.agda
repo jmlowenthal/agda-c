@@ -1,4 +1,4 @@
-module C.Lang where
+module C.Lang.Lang where
 
 open import Data.Nat using (ℕ ; _≟_)
 open import Data.Integer as ℤ using (ℤ)

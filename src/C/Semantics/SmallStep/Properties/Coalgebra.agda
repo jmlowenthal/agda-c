@@ -21,11 +21,11 @@ import Data.Integer as ℤ
 import Data.Integer.DivMod as ℤ÷
 import Level
 
-open import C
+open import C.Lang
 open import C.Properties.State
 open Lang ⦃ ... ⦄
 
-module C.Properties.Coalgebra ⦃ _ : Lang ⦄ where
+module C.Semantics.SmallStep.Properties.Coalgebra ⦃ _ : Lang ⦄ where
 
 -- Coinductive Verification of Program Optimizations Using Similarity Relations by Glesner et al.
 --

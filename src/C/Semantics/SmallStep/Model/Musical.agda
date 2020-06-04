@@ -1,5 +1,5 @@
 open import Algebra.FunctionProperties
-open import C
+open import C.Lang
 open import C.Properties.State
 open import Codata.Musical.Colist as Colist hiding ([_])
 open import Codata.Musical.Notation
@@ -24,7 +24,7 @@ import Relation.Binary.Reasoning.Setoid as SReason
 
 open Lang ⦃ ... ⦄
 
-module C.Properties.Musical ⦃ _ : Lang ⦄ where
+module C.Semantics.SmallStep.Model.Musical ⦃ _ : Lang ⦄ where
 
 -- Based on:
 -- Coinductive Verification of Program Optimizations Using Similarity Relations by Glesner et al.

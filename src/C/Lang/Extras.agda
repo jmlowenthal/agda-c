@@ -7,7 +7,7 @@ open import Data.String as String using (String ; toList ; fromList ; _++_)
 
 import Data.Nat.Show as ℕs
 
-module C.Extras ⦃ _ : Lang ⦄ where
+module C.Lang.Extras ⦃ _ : Lang ⦄ where
 
 open Lang ⦃ ... ⦄
 
