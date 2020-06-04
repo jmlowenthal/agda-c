@@ -1,3 +1,3 @@
 module C where
 
-open import C.Base public
+open import C.Lang public

@@ -12,7 +12,7 @@ open import Relation.Nullary
 
 import Level
 
-open C.C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 
 module C.Properties.State where
 
@@ -21,7 +21,7 @@ module C.Properties.State where
 ⟦ Bool ⟧ = 𝔹
 ⟦ Array α n ⟧ = Vec ⟦ α ⟧ n
 
-module _ ⦃ _ : C ⦄ where
+module _ ⦃ _ : Lang ⦄ where
 
   data Env : Set where
     _↦_,_ : ∀ { α } → Ref α → ⟦ α ⟧ → Env → Env

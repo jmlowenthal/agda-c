@@ -1,6 +1,6 @@
 module Print.Print where
 
-open import C.Base
+open import C
 open import Data.List as List using (List ; [] ; _∷_)
 open import Data.Maybe
 open import Data.Nat as ℕ using (ℕ ; suc)
@@ -14,46 +14,46 @@ import Data.Integer as ℤ
 import Data.Nat.Show as ℕs
 import Data.Char as Char
 
-open C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 
 print-ctype : c_type → String
 print-ctype Int = "int"
 print-ctype Bool = "int"
 print-ctype (Array α n) = "(" ++ (print-ctype α) ++ ")[" ++ (ℕs.show n) ++ "]" 
 
-Print-C : C
-C.Ref Print-C _ = String
-C.Expr Print-C _ = String
-C.Statement Print-C = ℕ → ℕ × String
-C.⟪_⟫ Print-C x = ℤ.show x
-C._+_ Print-C x y = "(" ++ x ++ ") + (" ++ y ++ ")"
-C._*_ Print-C x y = "(" ++ x ++ ") * (" ++ y ++ ")"
-C._-_ Print-C x y = "(" ++ x ++ ") - (" ++ y ++ ")"
-C._/_ Print-C x y = "(" ++ x ++ ") / (" ++ y ++ ")"
-C._<_ Print-C x y = "(" ++ x ++ ") < (" ++ y ++ ")"
-C._<=_ Print-C x y = "(" ++ x ++ ") <= (" ++ y ++ ")"
-C._>_ Print-C x y = "(" ++ x ++ ") > (" ++ y ++ ")"
-C._>=_ Print-C x y = "(" ++ x ++ ") >= (" ++ y ++ ")"
-C._==_ Print-C x y = "(" ++ x ++ ") == (" ++ y ++ ")"
-C.true Print-C = "1"
-C.false Print-C = "0"
-C._||_ Print-C x y = "(" ++ x ++ ") || (" ++ y ++ ")"
-C._&&_ Print-C x y = "(" ++ x ++ ") && (" ++ y ++ ")"
-C.!_ Print-C x = "!(" ++ x ++ ")"
-C._[_] Print-C r i = r ++ "[" ++ i ++ "]"
-C.★_ Print-C x = x
-C._⁇_∷_ Print-C c x y = "(" ++ c ++ ") " ++ fromChar (Char.fromℕ 63) -- Question mark = 63
+Print-C : Lang
+Lang.Ref Print-C _ = String
+Lang.Expr Print-C _ = String
+Lang.Statement Print-C = ℕ → ℕ × String
+Lang.⟪_⟫ Print-C x = ℤ.show x
+Lang._+_ Print-C x y = "(" ++ x ++ ") + (" ++ y ++ ")"
+Lang._*_ Print-C x y = "(" ++ x ++ ") * (" ++ y ++ ")"
+Lang._-_ Print-C x y = "(" ++ x ++ ") - (" ++ y ++ ")"
+Lang._/_ Print-C x y = "(" ++ x ++ ") / (" ++ y ++ ")"
+Lang._<_ Print-C x y = "(" ++ x ++ ") < (" ++ y ++ ")"
+Lang._<=_ Print-C x y = "(" ++ x ++ ") <= (" ++ y ++ ")"
+Lang._>_ Print-C x y = "(" ++ x ++ ") > (" ++ y ++ ")"
+Lang._>=_ Print-C x y = "(" ++ x ++ ") >= (" ++ y ++ ")"
+Lang._==_ Print-C x y = "(" ++ x ++ ") == (" ++ y ++ ")"
+Lang.true Print-C = "1"
+Lang.false Print-C = "0"
+Lang._||_ Print-C x y = "(" ++ x ++ ") || (" ++ y ++ ")"
+Lang._&&_ Print-C x y = "(" ++ x ++ ") && (" ++ y ++ ")"
+Lang.!_ Print-C x = "!(" ++ x ++ ")"
+Lang._[_] Print-C r i = r ++ "[" ++ i ++ "]"
+Lang.★_ Print-C x = x
+Lang._⁇_∷_ Print-C c x y = "(" ++ c ++ ") " ++ fromChar (Char.fromℕ 63) -- Question mark = 63
     ++ " (" ++ x ++ ") : (" ++ y ++ ")"
-C._≔_ Print-C x y n = n , x ++ " = " ++ y ++ ";\n"
-C.if_then_else_ Print-C e x y n =
+Lang._≔_ Print-C x y n = n , x ++ " = " ++ y ++ ";\n"
+Lang.if_then_else_ Print-C e x y n =
   let n , x = x n in
   let n , y = y n in
     n , "if (" ++ e ++ ") {\n" ++ x ++ "}\nelse\n{\n" ++ y ++ "}\n"
-C._；_ Print-C x y n =
+Lang._；_ Print-C x y n =
   let n , x = x n in
   let n , y = y n in
     n , x ++ y
-C.decl Print-C α f n =
+Lang.decl Print-C α f n =
   let ref = "x" ++ ℕs.show n in
   let n , f = f ref (ℕ.suc n) in
     n , builder α ref ++ ";\n" ++ f
@@ -62,8 +62,8 @@ C.decl Print-C α f n =
     builder Int acc = "int " ++ acc
     builder Bool acc = "/* BOOL */ int " ++ acc
     builder (Array α n) acc = builder α (acc ++ "[" ++ ℕs.show n ++ "]")
-C.nop Print-C n = n , ""
-C.for_to_then_ Print-C l u f n =
+Lang.nop Print-C n = n , ""
+Lang.for_to_then_ Print-C l u f n =
   let i = "x" ++ ℕs.show n in
   let n , f = f i (ℕ.suc n) in
     n ,
@@ -72,15 +72,15 @@ C.for_to_then_ Print-C l u f n =
       ++ "++" ++ i ++ ") {\n"
       ++ f
     ++ "}\n"
-C.while_then_ Print-C e f n =
+Lang.while_then_ Print-C e f n =
   let n , f = f n in
     n , "while (" ++ e ++ "){\n" ++ f ++ "}\n"
-C.putchar Print-C x n = n , "putchar(" ++ x ++ ");\n"
+Lang.putchar Print-C x n = n , "putchar(" ++ x ++ ");\n"
 
-print : (∀ ⦃ _ : C ⦄ → Statement) → String
+print : (∀ ⦃ _ : Lang ⦄ → Statement) → String
 print s = proj₂ (s ⦃ Print-C ⦄ 0)
 
-print-main : (∀ ⦃ _ : C ⦄ → Statement) → String
+print-main : (∀ ⦃ _ : Lang ⦄ → Statement) → String
 print-main s =
   "#include <stdio.h>\n"
   ++ "int main(void) {\n"

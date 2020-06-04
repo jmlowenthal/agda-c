@@ -1,5 +1,5 @@
 open import Algebra.FunctionProperties
-open import C.Base
+open import C
 open import C.Properties.State
 open import Codata.Musical.Colist as Colist hiding ([_])
 open import Codata.Musical.Notation

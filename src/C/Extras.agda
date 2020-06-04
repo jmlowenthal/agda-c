@@ -1,4 +1,4 @@
-open import C.Base
+open import C.Lang
 open import Data.Char as Char using (Char ; toℕ ; fromℕ)
 open import Data.Integer as ℤ using (+_)
 open import Data.List as List using (List ; [] ; _∷_)
@@ -7,9 +7,9 @@ open import Data.String as String using (String ; toList ; fromList ; _++_)
 
 import Data.Nat.Show as ℕs
 
-module C.Extras ⦃ _ : C ⦄ where
+module C.Extras ⦃ _ : Lang ⦄ where
 
-open C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 
 _%_ : Expr Int → Expr Int → Expr Int
 x % y = x - ((x / y) * y)

@@ -1,4 +1,4 @@
-module C.Base where
+module C.Lang where
 
 open import Data.Nat using (ℕ ; _≟_)
 open import Data.Integer as ℤ using (ℤ)
@@ -25,7 +25,7 @@ data c_type : Set where
 ... | yes refl | no ¬p = no (λ { refl → ¬p refl })
 ... | yes refl | yes refl = yes refl
 
-record C : Set₁ where
+record Lang : Set₁ where
   field
     Expr : c_type → Set
     Statement : Set
