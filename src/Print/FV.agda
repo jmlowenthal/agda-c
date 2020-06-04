@@ -11,15 +11,15 @@ module Print.FV where
 
 open import C
 
-c : C
-C.Ref c _ = ℕ
+c : Lang
+Lang.Ref c _ = ℕ
 
 toℕ : c_type → ℕ
 toℕ Int = 0
 toℕ Bool = 1
 toℕ (Array α n) = (toℕ α) * (10 ^ n)
 
-_⊑_ : Rel (∃ λ β → C.Ref c β) Level.zero
+_⊑_ : Rel (∃ λ β → Lang.Ref c β) Level.zero
 (α , x) ⊑ (β , y) = x < y ⊎ (x ≡ y × (toℕ α) < (toℕ β))
 
 ⊑-cmp : Trichotomous _≡_ _⊑_
@@ -45,6 +45,6 @@ isStrictTotalOrder = record {
   trans = {!<-trans!} ;
   compare = ⊑-cmp }
 
--- open import C.Properties.FreeVariables ⦃ c ⦄ isStrictTotalOrder
+-- open import Lang.Properties.FreeVariables ⦃ c ⦄ isStrictTotalOrder
 
 -- fv : FreeVariables

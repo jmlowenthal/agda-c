@@ -44,52 +44,52 @@ data IStatement : Set where
   nop : IStatement
   putchar : IExpr Int → IStatement
 
-AST-C : C
-C.Expr AST-C α = IExpr α
-C.Ref AST-C α = IRef α
-C.Statement AST-C = ℕ → ℕ × IStatement
-C.⟪_⟫ AST-C x = lit x
-C._+_ AST-C x y = add x y
-C._*_ AST-C x y = mul x y
-C._-_ AST-C x y = sub x y
-C._/_ AST-C x y = div x y
-C._<_ AST-C x y = lt x y
-C._<=_ AST-C x y = lte x y
-C._>_ AST-C x y = gt x y
-C._>=_ AST-C x y = gte x y
-C._==_ AST-C x y = eq x y
-C.true AST-C = true
-C.false AST-C = false
-C._||_ AST-C x y = or x y
-C._&&_ AST-C x y = and x y
-C.!_ AST-C x = not x
-C._[_] AST-C (r , l) i = r , i ∷ l
-C.★_ AST-C x = deref x
-C._⁇_∷_ AST-C c x y = tenary c x y
-C._≔_ AST-C x y n = n , assignment x y
-C.if_then_else_ AST-C e x y n =
+AST-C : Lang
+Lang.Expr AST-C α = IExpr α
+Lang.Ref AST-C α = IRef α
+Lang.Statement AST-C = ℕ → ℕ × IStatement
+Lang.⟪_⟫ AST-C x = lit x
+Lang._+_ AST-C x y = add x y
+Lang._*_ AST-C x y = mul x y
+Lang._-_ AST-C x y = sub x y
+Lang._/_ AST-C x y = div x y
+Lang._<_ AST-C x y = lt x y
+Lang._<=_ AST-C x y = lte x y
+Lang._>_ AST-C x y = gt x y
+Lang._>=_ AST-C x y = gte x y
+Lang._==_ AST-C x y = eq x y
+Lang.true AST-C = true
+Lang.false AST-C = false
+Lang._||_ AST-C x y = or x y
+Lang._&&_ AST-C x y = and x y
+Lang.!_ AST-C x = not x
+Lang._[_] AST-C (r , l) i = r , i ∷ l
+Lang.★_ AST-C x = deref x
+Lang._⁇_∷_ AST-C c x y = tenary c x y
+Lang._≔_ AST-C x y n = n , assignment x y
+Lang.if_then_else_ AST-C e x y n =
   let n , x = x n in
   let n , y = y n in
     n , ifthenelse e x y
-C._；_ AST-C x y n =
+Lang._；_ AST-C x y n =
   let n , x = x n in
   let n , y = y n in
     n , sequence x y
-C.decl AST-C α f n =
+Lang.decl AST-C α f n =
   let ref = n in
   let n , f = f (ref , []) (ℕ.suc n) in
     n , declaration α ref f
-C.nop AST-C n = n , nop
-C.for_to_then_ AST-C l u f n =
+Lang.nop AST-C n = n , nop
+Lang.for_to_then_ AST-C l u f n =
   let ref = (n , []) in
   let n , f = f ref (ℕ.suc n) in
     n , for ref l u f
-C.while_then_ AST-C e f n =
+Lang.while_then_ AST-C e f n =
   let n , f = f n in
     n , while e f
-C.putchar AST-C x n = n , putchar x
+Lang.putchar AST-C x n = n , putchar x
 
-toAST : (∀ ⦃ ℐ ⦄ → C.Statement ℐ) → IStatement
+toAST : (∀ ⦃ ℐ ⦄ → Lang.Statement ℐ) → IStatement
 toAST s = proj₂ ((s ⦃ AST-C ⦄) 0)
 
 ≟-List : ∀ { a } { A : Set a }
