@@ -22,9 +22,9 @@ open import Size
 import Level
 import Codata.Musical.Conat as Coℕ
 
-module C.Properties.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
+module C.Properties.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
 
-open C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
 open ≡-Reasoning
 

@@ -22,9 +22,9 @@ import Data.Bool as 𝔹
 import Codata.Musical.Conat as Coℕ
 import Relation.Binary.Reasoning.Setoid as SReason
 
-open C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 
-module C.Properties.Musical ⦃ _ : C ⦄ where
+module C.Properties.Musical ⦃ _ : Lang ⦄ where
 
 -- Based on:
 -- Coinductive Verification of Program Optimizations Using Similarity Relations by Glesner et al.
