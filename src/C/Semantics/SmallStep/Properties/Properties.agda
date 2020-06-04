@@ -1,7 +1,6 @@
 open import Algebra.FunctionProperties
-open import C
-open import C.Properties.Musical
-open import C.Properties.State
+open import C.Lang
+open import C.Semantics.SmallStep.Model
 open import Codata.Musical.Colist as Colist
 open import Codata.Musical.Notation
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
@@ -22,9 +21,9 @@ open import Size
 import Level
 import Codata.Musical.Conat as Coℕ
 
-module C.Properties.Properties ⦃ _ : C ⦄ ⦃ _ : Semantics ⦄ where
+module C.Semantics.SmallStep.Properties.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
 
-open C ⦃ ... ⦄
+open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
 open ≡-Reasoning
 

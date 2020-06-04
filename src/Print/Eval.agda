@@ -1,7 +1,7 @@
 module Print.Eval where
 
 open import C
-open import C.Properties.State
+open import C.Semantics.SmallStep.Model.State
 open import Data.Bool renaming (Bool to 𝔹 ; if_then_else_ to If_Then_Else_)
 open import Data.Integer as ℤ using (ℤ)
 open import Data.Maybe
@@ -59,43 +59,43 @@ E0 {Bool} _ = 𝔹.false
 E0 {Array α ℕ.zero} _ = []
 E0 {Array α (ℕ.suc n)} _ = E0 {α} (var 0) ∷ E0 (var 0)
 
-Eval-C : C
-C.Ref Eval-C α = Envir → Refer α
-C.Expr Eval-C α = Envir → ⟦ α ⟧
-C.Statement Eval-C = (String × ℕ × Envir) → (String × ℕ × Envir)
-C.⟪_⟫ Eval-C x _ = x
-C._+_ Eval-C x y E = x E ℤ.+ y E
-C._*_ Eval-C x y E = x E ℤ.* y E
-C._-_ Eval-C x y E = x E ℤ.- y E
-C._/_ Eval-C x y E = divide (x E) (y E)
-C._<_ Eval-C x y E = ⌊ x E ℤ.<? y E ⌋
-C._<=_ Eval-C x y E = ⌊ x E ℤ.≤? y E ⌋
-C._>_ Eval-C x y E = ⌊ y E ℤ.<? x E ⌋
-C._>=_ Eval-C x y E = ⌊ y E ℤ.≤? x E ⌋
-C._==_ Eval-C x y E = ⌊ x E ℤ.≟ y E ⌋
-C.true Eval-C E = 𝔹.true
-C.false Eval-C E = 𝔹.false
-C._||_ Eval-C x y E = x E ∨ y E
-C._&&_ Eval-C x y E = x E ∧ y E
-C.!_ Eval-C x E = not (x E)
-C._[_] Eval-C r i E = index (r E) (i E)
-C.★_ Eval-C x E = E (x E)
-C._⁇_∷_ Eval-C c x y E with c E
+Eval-C : Lang
+Lang.Ref Eval-C α = Envir → Refer α
+Lang.Expr Eval-C α = Envir → ⟦ α ⟧
+Lang.Statement Eval-C = (String × ℕ × Envir) → (String × ℕ × Envir)
+Lang.⟪_⟫ Eval-C x _ = x
+Lang._+_ Eval-C x y E = x E ℤ.+ y E
+Lang._*_ Eval-C x y E = x E ℤ.* y E
+Lang._-_ Eval-C x y E = x E ℤ.- y E
+Lang._/_ Eval-C x y E = divide (x E) (y E)
+Lang._<_ Eval-C x y E = ⌊ x E ℤ.<? y E ⌋
+Lang._<=_ Eval-C x y E = ⌊ x E ℤ.≤? y E ⌋
+Lang._>_ Eval-C x y E = ⌊ y E ℤ.<? x E ⌋
+Lang._>=_ Eval-C x y E = ⌊ y E ℤ.≤? x E ⌋
+Lang._==_ Eval-C x y E = ⌊ x E ℤ.≟ y E ⌋
+Lang.true Eval-C E = 𝔹.true
+Lang.false Eval-C E = 𝔹.false
+Lang._||_ Eval-C x y E = x E ∨ y E
+Lang._&&_ Eval-C x y E = x E ∧ y E
+Lang.!_ Eval-C x E = not (x E)
+Lang._[_] Eval-C r i E = index (r E) (i E)
+Lang.★_ Eval-C x E = E (x E)
+Lang._⁇_∷_ Eval-C c x y E with c E
 ... | true = x E
 ... | false = y E
-C._≔_ Eval-C x y (s , n , E) = s , n , env
+Lang._≔_ Eval-C x y (s , n , E) = s , n , env
   where
     env : Envir
     env r with ≟-Refer (_ , r) (_ , x E)
     ... | yes refl = y E
     ... | no _ = E r
-C.if_then_else_ Eval-C e x y (s , n , E) with e E
+Lang.if_then_else_ Eval-C e x y (s , n , E) with e E
 ... | true = x (s , n , E)
 ... | false = y (s , n , E)
-C._；_ Eval-C x y (s , n , E) = y (x (s , n , E))
-C.decl Eval-C α f (s , n , E) = f (λ _ → var n) (s , ℕ.suc n , E)
-C.nop Eval-C = id
-C.for_to_then_ Eval-C l u f (s , n , E) = iter (u E) (u E ℤ.- l E) (s , ℕ.suc n , E)
+Lang._；_ Eval-C x y (s , n , E) = y (x (s , n , E))
+Lang.decl Eval-C α f (s , n , E) = f (λ _ → var n) (s , ℕ.suc n , E)
+Lang.nop Eval-C = id
+Lang.for_to_then_ Eval-C l u f (s , n , E) = iter (u E) (u E ℤ.- l E) (s , ℕ.suc n , E)
   where
     env : ℤ → Envir → Envir
     env _ E r@(index _ _) = E r
@@ -109,6 +109,6 @@ C.for_to_then_ Eval-C l u f (s , n , E) = iter (u E) (u E ℤ.- l E) (s , ℕ.su
     iter base (ℤ.pos ℕ.zero) = id
     iter base j@(ℤ.pos (ℕ.suc i)) (s , m , E) =
       iter base (ℤ.pos i) (f (λ _ → var n) (s , m , env (base ℤ.- j) E))
-C.while_then_ Eval-C e f = ?
-C.putchar Eval-C x (s , n , E) =
+Lang.while_then_ Eval-C e f = {!!}
+Lang.putchar Eval-C x (s , n , E) =
   s Data.String.++ fromChar (Char.fromℕ ℤ.∣ (x E) ℤ.⊔ (ℤ.+ 0) ∣) , n , E

@@ -1,4 +1,4 @@
-open import C
+open import C.Lang
 
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
 open import Data.Integer as ℤ using (ℤ ; +_)
@@ -14,7 +14,7 @@ import Level
 
 open Lang ⦃ ... ⦄
 
-module C.Properties.State where
+module C.Semantics.SmallStep.Model.State where
 
 ⟦_⟧ : c_type → Set
 ⟦ Int ⟧ = ℤ
