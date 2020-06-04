@@ -1,6 +1,6 @@
 open import Algebra.FunctionProperties
 open import C.Lang
-open import C.Properties.State
+open import C.Semantics.SmallStep.Model.State
 open import Codata.Musical.Colist as Colist hiding ([_])
 open import Codata.Musical.Notation
 open import Data.Empty

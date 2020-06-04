@@ -1,7 +1,6 @@
 open import Algebra.FunctionProperties
 open import C.Lang
-open import C.Properties.Musical
-open import C.Properties.State
+open import C.Semantics.SmallStep.Model
 open import Codata.Musical.Colist as Colist
 open import Codata.Musical.Notation
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)
