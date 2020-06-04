@@ -10,7 +10,7 @@ PWD=$(shell pwd)
 all: src/**/*.agda
 	@echo "Compiling all Agda source files in src/"
 	cd src/ \
-	&& find -name \*.agda -exec $(AGDA_C) --compile-dir $(PWD)/build/ '{}' \;
+	&& find -name \*.agda -exec $(AGDA_C) --no-main --compile-dir $(PWD)/build/ '{}' \;
 
 test:
 
