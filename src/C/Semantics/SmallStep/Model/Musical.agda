@@ -160,6 +160,12 @@ record Semantics : Set₁ where
     /-eval : ∀ { E x y x' y' }
       → E ⊢ x ⇒ x' → E ⊢ y ⇒ y' → (y≠0 : False (ℤ.∣ y' ∣ ℕ.≟ 0))
       → E ⊢ x / y ⇒ ((x' ℤ÷.div y') {y≠0})
+    <-eval : ∀ { E x y x' y' }
+      → E ⊢ x ⇒ x' → E ⊢ y ⇒ y'
+      → E ⊢ x < y ⇒ (⌊ x' ℤ.<? y' ⌋)
+    >-eval : ∀ { E x y x' y' }
+      → E ⊢ x ⇒ x' → E ⊢ y ⇒ y'
+      → E ⊢ x > y ⇒ (⌊ y' ℤ.<? x' ⌋)
     true-eval : ∀ { E } → E ⊢ true ⇒ 𝔹.true
     false-eval : ∀ { E } → E ⊢ false ⇒ 𝔹.false
     ||-eval : ∀ { E x y x' y' }
