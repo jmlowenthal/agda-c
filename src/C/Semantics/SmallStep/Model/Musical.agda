@@ -125,14 +125,16 @@ SmallStep⁺ : ∀ (_~[_]↝_ : State → Label → State → Set) → State →
 SmallStep⁺ _~[_]↝_ X Y [] = ⊥
 SmallStep⁺ _~[_]↝_ X Y (e ∷ es) = ∃[ X' ] (X ~[ e ]↝ X' × SmallStep* _~[_]↝_ X' Y (♭ es))
 
-Congruence : ∀ { a l } { A : Set a } → Rel A l → Set _
-Congruence {A = A} _~_ = ∀ (f : A → A) x y → x ~ y → (f x) ~ (f y)
+reducer : ∀ X { R } → (∀ x k E → ∃[ S' ] ∃[ e ] (R (𝒮 x k E) e S')) → Reduction R X
+reducer Ω _ = []
+reducer (𝒮 x k E) f =
+  let S' , e , S↝S' = f x k E in
+    S↝S' ∷ ♯ reducer S' f
 
 record Semantics : Set₁ where
   field
     _⊢_⇒_ : ∀ { α } → Env → Expr α → ⟦ α ⟧ → Set
     _~[_]↝_ : State → Label → State → Set
-    reduce : ∀ X → Reduction _~[_]↝_ X
 
     ⊢-total : ∀ { α E } { e : Expr α } → ∃[ v ] (E ⊢ e ⇒ v) -- should ensure no free variables
     ⊢-det : ∀ { α E } { e : Expr α } { v w : ⟦ α ⟧ } → E ⊢ e ⇒ v → E ⊢ e ⇒ w → v ≡ w 
@@ -201,9 +203,12 @@ record Semantics : Set₁ where
     ↝-putchar : ∀ { E k } { e : Expr Int } { v : ℤ.ℤ }
       → E ⊢ e ⇒ v → 𝒮 (putchar e) k E ~[ emit v ↗ ]↝ 𝒮 nop k E
     ↝-det : ∀ { S S₁ S₂ e f } → S ~[ e ]↝ S₁ → S ~[ f ]↝ S₂ → e ≡ f × S₁ ≡ S₂
-    ↝-progress : ∀ (x k E) → (x ≡ nop × k ≡ []) ⊎ (∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S'))
+    ↝-progress : ∀ (x k E) → ∃[ S' ] ∃[ e ] (𝒮 x k E ~[ e ]↝ S')
     ↝-irr-cont : ∀ { s s' k₁ k₂ E E' e }
       → 𝒮 s k₁ E ~[ e ]↝ 𝒮 s' k₁ E' → 𝒮 s k₂ E ~[ e ]↝ 𝒮 s' k₂ E'
+
+  reduce : ∀ X → Reduction _~[_]↝_ X
+  reduce X = reducer X ↝-progress
 
   labels : State → Labels
   labels X = labels-of (reduce X)
@@ -221,7 +226,6 @@ record Semantics : Set₁ where
       → E₁ ⊢ e₁ ⇒ v → E₂ ⊢ e₂ ⇒ w → v ≡ w
       → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
     ≅ₛ-decl : ∀ { α f k E } → 𝒮 (decl α λ x → f) k E ≅ₛ 𝒮 f k E
-    ≅ₛ-cong : Congruence _≅ₛ_
 
 open Semantics ⦃ ... ⦄
 module _ ⦃ _ : Semantics ⦄ where
