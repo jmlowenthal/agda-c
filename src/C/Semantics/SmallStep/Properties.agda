@@ -5,10 +5,12 @@ module C.Semantics.SmallStep.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ w
 
 
 -- Expression properties
-open import C.Semantics.SmallStep.Properties.Expression public
+open import C.Semantics.SmallStep.Properties.Expression.Equivalence public
+open import C.Semantics.SmallStep.Properties.Expression.Properties public
 
 -- Program properties
-open import C.Semantics.SmallStep.Properties.Equivalence public
-open import C.Semantics.SmallStep.Properties.Properties public
-open import C.Semantics.SmallStep.Properties.Nested public
-open import C.Semantics.SmallStep.Properties.Congruence public
+open import C.Semantics.SmallStep.Properties.Program.Reduction public
+open import C.Semantics.SmallStep.Properties.Program.Equivalence public
+open import C.Semantics.SmallStep.Properties.Program.Properties public
+open import C.Semantics.SmallStep.Properties.Program.Nested public
+open import C.Semantics.SmallStep.Properties.Program.Congruence public
