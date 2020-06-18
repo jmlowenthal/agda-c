@@ -1,6 +1,6 @@
 open import C.Lang
 open import C.Semantics.SmallStep.Model
-open import C.Semantics.SmallStep.Properties.Equivalence
+open import C.Semantics.SmallStep.Properties.Program.Equivalence
 open import Codata.Musical.Colist
 open import Codata.Musical.Notation
 open import Data.List
@@ -8,7 +8,7 @@ open import Data.Product
 
 import Data.Bool as 𝔹
 
-module C.Semantics.SmallStep.Properties.Nested ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
+module C.Semantics.SmallStep.Properties.Program.Nested ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
 
 open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄

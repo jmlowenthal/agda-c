@@ -1,13 +1,14 @@
 open import Algebra.FunctionProperties
 open import C.Lang
 open import C.Semantics.SmallStep.Model
+open import C.Semantics.SmallStep.Properties.Expression.Equivalence
 open import Data.Integer as ℤ using (ℤ ; +_)
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 
 import Data.Integer.Properties as ℤₚ
 
-module C.Semantics.SmallStep.Properties.Expression ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
+module C.Semantics.SmallStep.Properties.Expression.Properties ⦃ _ : Lang ⦄ ⦃ _ : Semantics ⦄ where
 
 open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄

@@ -1,6 +1,6 @@
 open import C.Lang
 open import C.Semantics.SmallStep.Model
-open import C.Semantics.SmallStep.Properties.Equivalence
+open import C.Semantics.SmallStep.Properties.Program.Equivalence
 
 open import Data.Unit
 open import Relation.Binary.PropositionalEquality
@@ -15,7 +15,7 @@ open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Integer using (+_)
 
-module C.Semantics.SmallStep.Properties.Congruence where
+module C.Semantics.SmallStep.Properties.Program.Congruence where
 
 open Lang ⦃ ... ⦄
 open Semantics ⦃ ... ⦄
