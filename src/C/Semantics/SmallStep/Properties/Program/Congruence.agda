@@ -19,9 +19,6 @@ open Semantics ⦃ ... ⦄
 
 Statement* = ∀ ⦃ ℒ : Lang ⦄ → Statement
 
-Context* : ∀ { n L } → Sets n L → Set _
-Context* V = (V ⇉ Statement*) → Statement*
-
 _≅ₚ*_ : Statement* → Statement* → Set₁
 x ≅ₚ* y = ∀ ⦃ ℒ : Lang ⦄ ⦃ ℳ : Semantics ⦄ → x ≅ₚ y
 
