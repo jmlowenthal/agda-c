@@ -1,14 +1,10 @@
-open import Algebra.FunctionProperties
 open import C.Lang
 open import C.Semantics.SmallStep.Model.State
 open import Codata.Musical.Colist as Colist hiding ([_])
 open import Codata.Musical.Notation
 open import Data.Empty
-open import Data.List as L using (List ; [] ; _∷_)
-open import Data.Maybe
+open import Data.List hiding (_++_ ; [_])
 open import Data.Product
-open import Data.Sum
-open import Function
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -19,8 +15,6 @@ import Data.Integer as ℤ
 import Data.Integer.DivMod as ℤ÷
 import Data.Nat as ℕ
 import Data.Bool as 𝔹
-import Codata.Musical.Conat as Coℕ
-import Relation.Binary.Reasoning.Setoid as SReason
 
 open Lang ⦃ ... ⦄
 
@@ -226,14 +220,10 @@ record Semantics : Set₁ where
       → E₁ ⊢ e₁ ⇒ v → E₂ ⊢ e₂ ⇒ w → v ≡ w
       → 𝒮 (f e₁) k E₁ ≅ₛ 𝒮 (f e₂) k E₂
     ≅ₛ-decl : ∀ { α f k E } → 𝒮 (decl α λ x → f) k E ≅ₛ 𝒮 f k E
-
-open Semantics ⦃ ... ⦄
-module _ ⦃ _ : Semantics ⦄ where
-
-  infix 0 _≅ₑ_
-  _≅ₑ_ : ∀ { α } → Rel (Expr α) Level.zero
-  _≅ₑ_ { α } x y = ∀ { E : Env } { v w : ⟦ α ⟧ }
-    → (E ⊢ x ⇒ v) → (E ⊢ y ⇒ w) → (v ≡ w)
+    ≅ₛ-cong :
+      ∀ (V : Set) (f : (V → Statement) → Statement) (x y : V → Statement) →
+      (∀ v k E → 𝒮 (x v) k E ≅ₛ 𝒮 (y v) k E) →
+      (∀ k E → 𝒮 (f x) k E ≅ₛ 𝒮 (f y) k E)
 
   Stuck : State → Set
   Stuck S = ∀ S' e → ¬ (S ~[ e ]↝ S')
@@ -242,130 +232,8 @@ module _ ⦃ _ : Semantics ⦄ where
     [_] : Stuck X → Terminating X
     _∷_ : ∀ { e Y } → X ~[ e ]↝ Y → Terminating Y → Terminating X
 
-  -- EXPRESSION EQUIVALENCE
-
-  ≅ₑ-refl : ∀ { α } → Reflexive (_≅ₑ_ {α})
-  ≅ₑ-refl ⇒v ⇒w = ⊢-det ⇒v ⇒w
-
-  ≅ₑ-sym : ∀ { α } → Symmetric (_≅ₑ_ {α})
-  ≅ₑ-sym i≅j ⇒v ⇒w = sym (i≅j ⇒w ⇒v)
-
-  ≅ₑ-trans : ∀ { α } → Transitive (_≅ₑ_ {α})
-  ≅ₑ-trans i≅j j≅k ⇒v ⇒w =
-    let _ , ⇒a = ⊢-total in
-      trans (i≅j ⇒v ⇒a) (j≅k ⇒a ⇒w)
-
-  ≅ₑ-equiv : ∀ { α } → IsEquivalence (_≅ₑ_ {α})
-  ≅ₑ-equiv = record { refl = ≅ₑ-refl ; sym = ≅ₑ-sym ; trans = ≅ₑ-trans }
-
-
-  -- REDUCTION LEMMAS
-    
   _~[_]↝*_ : State → Labels → State → Set
   X ~[ e ]↝* Y = SmallStep* _~[_]↝_ X Y e
   
   _~[_]↝⁺_ : State → Labels → State → Set
   X ~[ e ]↝⁺ Y = SmallStep⁺ _~[_]↝_ X Y e
-
-  ↝*-trans : ∀ { e f } → Trans (_~[ e ]↝*_) (_~[ f ]↝*_) (_~[ e ++ f ]↝*_)
-  ↝*-trans ε j↝*k = j↝*k
-  ↝*-trans (i↝X ◅ X↝*j) j↝*k = i↝X ◅ ♯ (↝*-trans (♭ X↝*j) j↝*k)
-
-  ↝*-to-↝⁺ : ∀ { A B C e es } → A ~[ e ]↝ B → B ~[ es ]↝* C → A ~[ e ∷ ♯ es ]↝⁺ C
-  ↝*-to-↝⁺ A↝B B↝*C = _ , A↝B , B↝*C
-
-  ↝⁺-to-↝* : ∀ { A B es } → A ~[ es ]↝⁺ B → A ~[ es ]↝* B
-  ↝⁺-to-↝* {A} {B} {[]} ()
-  ↝⁺-to-↝* {es = _ ∷ _} (X , A↝X , X↝*B) = A↝X ◅ ♯ X↝*B
-
-  ↝̸-transᵇ : ∀ { S S' : State } { e }
-    → S ~[ e ]↝* S' → Finite e → Terminating S' → Terminating S
-  ↝̸-transᵇ ε _ S'↝ = S'↝
-  ↝̸-transᵇ (S↝X ◅ X↝*S') (_ ∷ p) S'↝ = S↝X ∷ ↝̸-transᵇ (♭ X↝*S') p S'↝
-
-  ↝̸-transᶠ : ∀ { S S' : State } { e }
-    → S ~[ e ]↝* S' → Finite e → Terminating S → Terminating S'
-  ↝̸-transᶠ ε _ S↝ = S↝
-  ↝̸-transᶠ (S↝X ◅ X↝*S') (_ ∷ p) ([ S↝̸ ]) = ⊥-elim (S↝̸ _ _ S↝X)
-  ↝̸-transᶠ (S↝X ◅ X↝*S') (_ ∷ p) (S↝Y ∷ Y↝)
-    rewrite proj₂ (↝-det S↝X S↝Y) = ↝̸-transᶠ (♭ X↝*S') p Y↝
-
-  ↝ω-transᵇ : ∀ { X Y : State } { e }
-    → X ~[ e ]↝* Y → Finite e → ¬ Terminating Y → ¬ Terminating X
-  ↝ω-transᵇ X↝*Y p Y↝ω X↝̸ = Y↝ω (↝̸-transᶠ X↝*Y p X↝̸)
-
-  ↝ω-transᶠ : ∀ { X Y : State } { e }
-    → X ~[ e ]↝* Y → Finite e → ¬ Terminating X → ¬ Terminating Y
-  ↝ω-transᶠ X↝*Y p X↝ω Y↝̸ = X↝ω (↝̸-transᵇ X↝*Y p Y↝̸)
-
-  {-# NON_TERMINATING #-} -- Either reduction could be infinite
-  ↝*-det : ∀ { S S₁ S₂ x y }
-    → Stuck S₁ → Stuck S₂ → S ~[ x ]↝* S₁ → S ~[ y ]↝* S₂ → S₁ ≡ S₂
-  ↝*-det _ _ ε ε = refl
-  ↝*-det S↝̸ _ ε (S↝X ◅ _) = ⊥-elim (S↝̸ _ _ S↝X)
-  ↝*-det _ S↝̸ (S↝X ◅ _) ε = ⊥-elim (S↝̸ _ _ S↝X)
-  ↝*-det S₁↝̸ S₂↝̸ (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
-    rewrite proj₂ (↝-det S↝X S↝Y) = ↝*-det S₁↝̸ S₂↝̸ (♭ X↝*S₁) (♭ Y↝*S₂)
-
-  {-# NON_TERMINATING #-} -- Could be two infinite reductions
-  ↝*-det' : ∀ { S S₁ S₂ x y }
-    → S ~[ x ]↝* S₁ → S ~[ y ]↝* S₂ → ∃[ z ] (S₁ ~[ z ]↝* S₂ ⊎ S₂ ~[ z ]↝* S₁)
-  ↝*-det' {x = []} {y} ε S↝*S₂ = _ , inj₁ S↝*S₂
-  ↝*-det' {x = x ∷ xs} {[]} S↝*S₁@(_ ◅ _) ε = _ , inj₂ S↝*S₁
-  ↝*-det' {x = x ∷ xs} {x₁ ∷ xs₁} (S↝X ◅ X↝*S₁) (S↝Y ◅ Y↝*S₂)
-    rewrite proj₂ (↝-det S↝X S↝Y) = ↝*-det' (♭ X↝*S₁) (♭ Y↝*S₂)
-
-  Colist-refl : ∀ {a} {A : Set a} → Reflexive (_≈_ {a} {A})
-  Colist-refl = Setoid.refl (Colist.setoid _)
-
-  Colist-sym : ∀ {a} {A : Set a} → Symmetric (_≈_ {a} {A})
-  Colist-sym = Setoid.sym (Colist.setoid _)
-
-  Colist-trans : ∀ {a} {A : Set a} → Transitive (_≈_ {a} {A})
-  Colist-trans = Setoid.trans (Colist.setoid _)
-
-  ≅ₛ-refl : Reflexive _≅ₛ_
-  ≅ₛ-refl = [≈]-refl
-
-  ≅ₛ-sym : Symmetric _≅ₛ_
-  ≅ₛ-sym = [≈]-sym
-
-  ≅ₛ-trans : Transitive _≅ₛ_
-  ≅ₛ-trans = [≈]-trans
-
-  ≅ₛ-equiv : IsEquivalence _≅ₛ_
-  ≅ₛ-equiv = record { refl = ≅ₛ-refl ; sym = ≅ₛ-sym ; trans = ≅ₛ-trans }
-
-  reduce-[] : ∀ { A } → labels A ≈ [] → Stuck A
-  reduce-[] {A} r with reduce A
-  reduce-[] {A} [] | [] = λ _ _ → ↝-Ω
-
-  reduce-det : ∀ { A } (x y : Reduction _~[_]↝_ A) → labels-of x ≈ labels-of y
-  reduce-det [] [] = []
-  reduce-det [] (Ω↝Y ∷ _) = ⊥-elim (↝-Ω Ω↝Y)
-  reduce-det (Ω↝X ∷ _) [] = ⊥-elim (↝-Ω Ω↝X)
-  reduce-det (A↝X ∷ X↝) (A↝Y ∷ Y↝) with (↝-det A↝X A↝Y)
-  ... | refl , refl = _ ∷ ♯ reduce-det (♭ X↝) (♭ Y↝)
-
-  ↝⇒≅ₛ : ∀ { A B } → A ~[ τ ]↝ B → A ≅ₛ B
-  ↝⇒≅ₛ {A} {B} A↝B with reduce A
-  ... | [] = ⊥-elim (↝-Ω A↝B)
-  ... | A↝C ∷ C↝
-    with ↝-det A↝B A↝C
-  ... | refl , refl = left ignore-τ (♯ [≈]-reflexive (reduce-det (♭ C↝) (reduce B)))
-
-  ↝*⇒≅ₛ : ∀ { A B n } → A ~[ fromList (L.replicate n τ) ]↝* B → A ≅ₛ B
-  ↝*⇒≅ₛ {n = ℕ.zero} ε = ≅ₛ-refl
-  ↝*⇒≅ₛ {n = ℕ.suc n} (A↝Y ◅ Y↝*B) = ≅ₛ-trans (↝⇒≅ₛ A↝Y) (↝*⇒≅ₛ {n = n} (♭ Y↝*B))
-
-  postulate cont-equiv : ∀ { a b c d E } → labels (𝒮 nop a E) [≈] labels (𝒮 nop c E) → (∀ E' → labels (𝒮 nop b E') [≈] labels (𝒮 nop d E')) → labels (𝒮 nop (a L.++ b) E) [≈] labels (𝒮 nop (c L.++ d) E)
-
-  reduction-of : ∀ { A B e } → A ~[ e ]↝* B → Reduction _~[_]↝_ A
-  reduction-of {A} ε = reduce A
-  reduction-of (A↝X ◅ X↝*B) = A↝X ∷ ♯ reduction-of (♭ X↝*B)
-
-  postulate ↝*-irr-cont : ∀ { x y k k' E e } → 𝒮 x k E ~[ e ]↝* 𝒮 y k E → 𝒮 x k' E ~[ e ]↝* 𝒮 y k' E
-  postulate cont-comb : ∀ { s E E' e f k X } → 𝒮 s [] E ~[ e ]↝* 𝒮 nop [] E' → 𝒮 nop k E' ~[ f ]↝* X → 𝒮 s k E ~[ e ++ f ]↝* X
-  postulate ≅ₛ-while-true : ∀ { s : Statement } { k k' E } → 𝒮 (while true then s) k E ≅ₛ 𝒮 (while true then s) k' E
-  -- s ； ...
-  -- nop ； ... or s' ； ...
