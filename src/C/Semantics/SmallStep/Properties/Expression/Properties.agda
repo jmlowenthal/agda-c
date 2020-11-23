@@ -1,4 +1,4 @@
-open import Algebra.FunctionProperties
+open import Algebra.Definitions
 open import C.Lang
 open import C.Semantics.SmallStep.Model
 open import C.Semantics.SmallStep.Properties.Expression.Equivalence
