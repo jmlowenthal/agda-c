@@ -1,3 +1,5 @@
+{-# OPTIONS --safe --exact-split --without-K #-}
+
 open import C.Lang
 
 open import Data.Bool as 𝔹 using () renaming (Bool to 𝔹)

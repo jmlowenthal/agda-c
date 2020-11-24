@@ -1,29 +1,34 @@
+{-# OPTIONS --safe --exact-split --without-K #-}
+
 module C.Lang.Lang where
 
-open import Data.Nat using (ℕ ; _≟_)
+import Data.Nat as ℕ
+open import Data.Product
+
 open import Data.Integer as ℤ using (ℤ)
 open import Relation.Binary using (Rel ; IsPartialOrder)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary using (Dec ; yes ; no)
+open import Relation.Nullary.Decidable
+open import Relation.Nullary.Product
 
 data c_type : Set where
   Int Bool : c_type -- TODO: Float type
-  Array : c_type → (n : ℕ) → c_type
+  Array : c_type → (n : ℕ.ℕ) → c_type
 
-≟-ctype : ∀ (x y : c_type) → Dec (x ≡ y)
-≟-ctype Int Int = yes refl
-≟-ctype Int Bool = no λ ()
-≟-ctype Int (Array _ _) = no λ ()
-≟-ctype Bool Int = no λ ()
-≟-ctype Bool Bool = yes refl
-≟-ctype Bool (Array _ -) = no λ ()
-≟-ctype (Array _ _) Int = no λ ()
-≟-ctype (Array _ _) Bool = no λ ()
-≟-ctype (Array α n) (Array β m)
-  with n ≟ m | ≟-ctype α β
-... | no ¬p | _ = no (λ { refl → ¬p refl })
-... | yes refl | no ¬p = no (λ { refl → ¬p refl })
-... | yes refl | yes refl = yes refl
+Array-inj : ∀ {m n x y} → Array m x ≡ Array n y → m ≡ n × x ≡ y
+Array-inj refl = refl , refl
+
+_≟_ : ∀ (x y : c_type) → Dec (x ≡ y)
+Int       ≟ Int       = yes refl
+Int       ≟ Bool      = no λ ()
+Int       ≟ Array _ _ = no λ ()
+Bool      ≟ Int       = no λ ()
+Bool      ≟ Bool      = yes refl
+Bool      ≟ Array _ _ = no λ ()
+Array _ _ ≟ Int       = no λ ()
+Array _ _ ≟ Bool      = no λ ()
+Array x m ≟ Array y n = map′ (uncurry (cong₂ Array)) Array-inj (x ≟ y ×-dec m ℕ.≟ n)
 
 record Lang : Set₁ where
   field
