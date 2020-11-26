@@ -9,9 +9,10 @@ open import Data.Unit using (⊤; tt)
 
 import Data.Float
 
-_⇉_[_] : ∀ {t e l n} {Type : Set t} → Vec Type n → Set l → (Expr : Type → Set e) → Set (e ⊔ l)
-_⇉_[_] {e = e} [] τ Expr = Level.Lift e τ
-(h ∷ t) ⇉ τ [ Expr ] = Expr h → (t ⇉ τ [ Expr ])
+
+Arrows : ∀ {t e l n} {Type : Set t} → Vec Type n → Set l → (T : Type → Set e) → Set (e ⊔ l)
+Arrows {e = e} [] τ T = Level.Lift e τ
+Arrows (h ∷ t) τ T = T h → (Arrows t τ T)
 
 
 record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) where
@@ -22,7 +23,12 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     Function : ∀ n → Vec Type n → Type → Set f
     Label : Set l
     Statement : Set s
-  
+
+  infixr 0 _⇉_
+  _⇉_ : ∀ {n l} → Vec Type n → Set l → Set (v ⊔ l)
+  x ⇉ y = Arrows x y Variable
+
+  field
     Int : Type
     Float : Type
 
@@ -55,8 +61,8 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     skip : Statement
     assignment : ∀ {τ} → Variable τ → Expr τ → Statement
     mem-write : ∀ {τ} → Expr Int → Expr τ → Statement
-    func-call : ∀ { n A β } → Maybe (Variable β) → Function n A β → A ⇉ Statement [ Expr ]
-    tailcall : ∀ { n A β } → Function n A β → A ⇉ Statement [ Expr ]
+    func-call : ∀ { n A β } → Maybe (Variable β) → Function n A β → A ⇉ Statement
+    tailcall : ∀ { n A β } → Function n A β → A ⇉ Statement
     return : ∀ {τ} → Maybe (Expr τ) → Statement
     sequence : Statement → Statement → Statement
     if-else : Expr Int → Statement → Statement → Statement
@@ -66,6 +72,10 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     switch : Expr Int → List (ℕ × ℕ) → Statement
     label : Label → Statement → Statement
     goto : Label → Statement
+
+    -- TODO: consider if Statement : Maybe Type → Set s
+
+    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params ⇉ vars ⇉ Statement → Function n params ret
 
 
 module Example {a b c d e f} (L : Lang a b c d e f) where
