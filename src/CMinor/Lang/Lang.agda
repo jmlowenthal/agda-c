@@ -24,6 +24,8 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     Label : Set l
     Statement : Set s
 
+    -- TODO: consider if Statement : Maybe Type → Set s -- Is it possible to define a refinement of this record type with this restriction? It should be.
+    
   infixr 0 _⇉_
   _⇉_ : ∀ {n l} → Vec Type n → Set l → Set (v ⊔ l)
   x ⇉ y = Arrows x y Variable
@@ -56,7 +58,7 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     cst-int : ℤ → Expr Int
     cst-float : Data.Float.Float → Expr Float
     -- addrsymbol : ? → ?
-    -- addrstack : ? → ?
+    addrstack : ℕ → Expr Int -- returns a pointer into the function stack
 
     skip : Statement
     assignment : ∀ {τ} → Variable τ → Expr τ → Statement
@@ -72,8 +74,6 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     switch : Expr Int → List (ℕ × ℕ) → Statement
     label : Label → Statement → Statement
     goto : Label → Statement
-
-    -- TODO: consider if Statement : Maybe Type → Set s
 
     define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params ⇉ vars ⇉ Statement → Function n params ret
 
@@ -100,6 +100,8 @@ module Example {a b c d e f} (L : Lang a b c d e f) where
   -- return s /. floatofint(sz)
   -- ```
   open Lang L
+
+  -- The syntax of our CMinor impl is very cumbersome (for now)
   average : Function 2 (Int ∷ Int ∷ []) Float
   average = define-function _ _ (Float ∷ Int ∷ []) 0
     (λ arr sz →
