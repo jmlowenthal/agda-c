@@ -101,4 +101,16 @@ module Example {a b c d e f} (L : Lang a b c d e f) where
   -- ```
   open Lang L
   average : Function 2 (Int ∷ Int ∷ []) Float
-  average = {!!}
+  average = define-function _ _ (Float ∷ Int ∷ []) 0
+    (λ arr sz →
+      Level.lift (λ s i →
+        Level.lift (
+          (block (loop (
+            sequence
+              (if-else (cmp->= (id i) (id sz)) (exit 0) skip)
+              (sequence
+                (assignment s (addf (id s) (floatofint (mem-read Int (add (id arr) (mul (id i) (cst-int (ℤ.+ 4))))))))
+                (assignment i (add (id i) (cst-int (ℤ.+ 1))))))))
+        )
+      )
+    )
