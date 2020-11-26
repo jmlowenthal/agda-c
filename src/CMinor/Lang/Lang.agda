@@ -7,6 +7,7 @@ open import Data.Vec as Vec using (Vec; []; _∷_)
 open import Data.Product as Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 
+import Data.Float
 
 _⇉_[_] : ∀ {t e l n} {Type : Set t} → Vec Type n → Set l → (Expr : Type → Set e) → Set (e ⊔ l)
 _⇉_[_] {e = e} [] τ Expr = Level.Lift e τ
@@ -26,7 +27,6 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     Float : Type
 
     id : ∀ {τ} → Variable τ → Expr τ
-    cst : ℤ → Expr Int
     mem-read : ∀ τ → Expr Int → Expr τ
     tenary : ∀ {α β} → Expr α → Expr β → Expr β → Expr β
 
@@ -45,6 +45,12 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     cmp-== cmp-!= cmp-> cmp->= cmp-< cmp-<= : Expr Int → Expr Int → Expr Int
     cmpu-== cmpu-!= cmpu-> cmpu->= cmpu-< cmpu-<= : Expr Int → Expr Int → Expr Int
     cmpf-== cmpf-!= cmpf-> cmpf->= cmpf-< cmpf-<= : Expr Float → Expr Float → Expr Float
+
+    -- cst
+    cst-int : ℤ → Expr Int
+    cst-float : Data.Float.Float → Expr Float
+    -- addrsymbol : ? → ?
+    -- addrstack : ? → ?
 
     skip : Statement
     assignment : ∀ {τ} → Variable τ → Expr τ → Statement
