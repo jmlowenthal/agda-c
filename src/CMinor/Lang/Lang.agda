@@ -1,14 +1,14 @@
-open import Level as Level using (Level; suc; _⊔_)
-open import Data.Maybe as Maybe using (Maybe)
-open import Data.Nat as ℕ using (ℕ)
+open import Data.Float using () renaming (Float to 𝔽)
 open import Data.Integer as ℤ using (ℤ)
 open import Data.List as List using (List; []; _∷_)
-open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Data.Maybe as Maybe using (Maybe)
+open import Data.Nat as ℕ using (ℕ)
 open import Data.Product as Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
+open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Level as Level using (Level; suc; _⊔_)
 
-import Data.Float
-
+module CMinor.Lang.Lang where
 
 Arrows : ∀ {t e l n} {Type : Set t} → Vec Type n → Set l → (T : Type → Set e) → Set (e ⊔ l)
 Arrows {e = e} [] τ T = Level.Lift e τ
@@ -56,7 +56,7 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
 
     -- cst
     cst-int : ℤ → Expr Int
-    cst-float : Data.Float.Float → Expr Float
+    cst-float : 𝔽 → Expr Float
     -- addrsymbol : ? → ?
     addrstack : ℕ → Expr Int -- returns a pointer into the function stack
 
