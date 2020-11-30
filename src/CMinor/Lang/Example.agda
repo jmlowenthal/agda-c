@@ -1,10 +1,10 @@
-open import Lang as _
+open import CMinor.Lang.Lang
 open import Data.Vec
 
 import Data.Integer as ℤ
 import Level
 
-module Example {a b c d e f} (L : Lang a b c d e f) where
+module CMinor.Lang.Example {a b c d e f} (L : Lang a b c d e f) where
 
 -- Example from Leroy et al
 -- ```
