@@ -77,6 +77,9 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
 
     define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params ⇉ vars ⇉ Statement → Function n params ret
 
+  _⇒_ : ∀ {n} → Vec Type n → Type → Set f
+  _⇒_ {n} = Function n
+
 
 module Example {a b c d e f} (L : Lang a b c d e f) where
   -- Example from Leroy et al
@@ -102,7 +105,7 @@ module Example {a b c d e f} (L : Lang a b c d e f) where
   open Lang L
 
   -- The syntax of our CMinor impl is very cumbersome (for now)
-  average : Function 2 (Int ∷ Int ∷ []) Float
+  average : (Int ∷ Int ∷ []) ⇒ Float
   average = define-function _ _ (Float ∷ Int ∷ []) 0
     (λ arr sz →
       Level.lift (λ s i →
