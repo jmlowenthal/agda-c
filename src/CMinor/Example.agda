@@ -4,7 +4,7 @@ open import Data.Vec
 import Data.Integer as ℤ
 import Level
 
-module CMinor.Lang.Example {a b c d e f} (L : Lang a b c d e f) where
+module CMinor.Example {a b c d e f} (L : Lang a b c d e f) where
 
 -- Example from Leroy et al
 -- ```
