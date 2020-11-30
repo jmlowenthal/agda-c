@@ -75,7 +75,7 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     label : Label → Statement → Statement
     goto : Label → Statement
 
-    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params ⇉ vars ⇉ Statement → Function n params ret
+    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params Vec.++ vars ⇉ Statement → Function n params ret
 
   _⇒_ : ∀ {n} → Vec Type n → Type → Set f
   _⇒_ {n} = Function n
