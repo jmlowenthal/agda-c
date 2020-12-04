@@ -13,7 +13,7 @@ module CMinor.Semantics.NaturalExpressionSemantics where
 _mod2^32 : ℕᵇ → ℕᵇ
 _mod2^32 n = ℕᵇ.fromℕ ((ℕᵇ.toℕ n) ℕ÷.% (2 ℕ.^ 32))
 
-record NaturalExpressionSemantics (l₁ l₂ l₃ l₄ l₅ l₆ l₇ g s e m j₁ j₂ j₃ t : Level) (ℒ : Lang l₁ l₂ l₃ l₄ l₅ l₆ l₇) : Set (Level.suc (l₁ ⊔ l₂ ⊔ l₃ ⊔ l₄ ⊔ l₅ ⊔ g ⊔ s ⊔ e ⊔ m ⊔ j₁ ⊔ j₂ ⊔ j₃ ⊔ t)) where
+record NaturalExpressionSemantics (l₁ l₂ l₃ l₄ l₅ l₆ l₇ g s e m j₁ j₂ j₃ t : Level) (ℒ : Lang l₁ l₂ l₃ l₄ l₅ l₆ l₇) : Set (Level.suc (l₁ ⊔ l₂ ⊔ l₃ ⊔ l₄ ⊔ g ⊔ s ⊔ e ⊔ m ⊔ j₁ ⊔ j₂ ⊔ j₃ ⊔ t)) where
 
   open Lang ℒ
 
