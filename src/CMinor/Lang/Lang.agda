@@ -3,6 +3,7 @@ open import Data.Integer as ℤ using (ℤ)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Maybe as Maybe using (Maybe)
 open import Data.Nat as ℕ using (ℕ)
+open import Data.Nat.Binary as ℕᵇ using (ℕᵇ)
 open import Data.Product as Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
@@ -15,9 +16,10 @@ Arrows {e = e} [] τ T = Level.Lift e τ
 Arrows (h ∷ t) τ T = T h → (Arrows t τ T)
 
 
-record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) where
+record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l ⊔ s)) where
   field
     Type : Set t
+    Constant : Type → Set c
     Expr : Type → Set e
     Variable : Type → Set v
     Function : ∀ n → Vec Type n → Type → Set f
@@ -35,8 +37,8 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     Float : Type
 
     id : ∀ {τ} → Variable τ → Expr τ
-    mem-read : ∀ τ → Expr Int → Expr τ
-    tenary : ∀ {α β} → Expr α → Expr β → Expr β → Expr β
+    mem-read : ∀ τ → Expr Int → Expr τ -- κ[a]
+    tenary : ∀ {α} → Expr Int → Expr α → Expr α → Expr α
 
     -- op₁(a₁)
     negint notint notbool : Expr Int → Expr Int
@@ -55,10 +57,11 @@ record Lang (t v e f l s : Level) : Set (suc (t ⊔ v ⊔ e ⊔ f ⊔ l ⊔ s)) 
     cmpf-== cmpf-!= cmpf-> cmpf->= cmpf-< cmpf-<= : Expr Float → Expr Float → Expr Float
 
     -- cst
-    cst-int : ℤ → Expr Int
-    cst-float : 𝔽 → Expr Float
+    cst : ∀ {α} → Constant α → Expr α
+    cst-int : ℕᵇ → Constant Int
+    cst-float : 𝔽 → Constant Float
     -- addrsymbol : ? → ?
-    addrstack : ℕ → Expr Int -- returns a pointer into the function stack
+    addrstack : ℕᵇ → Constant Int -- returns a pointer into the function stack
 
     skip : Statement
     assignment : ∀ {τ} → Variable τ → Expr τ → Statement
