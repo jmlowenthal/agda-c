@@ -1,5 +1,5 @@
 name: agda-c-0.2
-depends:
+depend:
 	standard-library
 include:
 	src
