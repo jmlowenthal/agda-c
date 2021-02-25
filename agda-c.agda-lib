@@ -1,4 +1,4 @@
-name: agda-c
+name: agda-c-0.2
 depends:
 	standard-library
 include:
