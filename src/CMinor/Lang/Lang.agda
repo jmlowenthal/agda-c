@@ -13,7 +13,7 @@ module CMinor.Lang.Lang where
 
 Arrows : ∀ {t e l n} {A : Set t} → Vec A n → Set (e ⊔ l) → (A → Set e) → Set (e ⊔ l)
 Arrows [] τ T = τ
-Arrows {e = e} {l} v@(_ ∷ _) τ T = helper (Vec.map T v) → τ
+Arrows {e = e} {l} {ℕ.suc _} v@(_ ∷ _) τ T = helper (Vec.map T v) → τ
   where
     helper : ∀ {n} → Vec (Set _) (ℕ.suc n) → Set e
     helper (h ∷ []) = h
