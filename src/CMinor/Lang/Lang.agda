@@ -11,10 +11,9 @@ open import Level as Level using (Level; suc; _⊔_)
 
 module CMinor.Lang.Lang where
 
-Arrows : ∀ {t e l n} {Type : Set t} → Vec Type n → Set l → (T : Type → Set e) → Set (e ⊔ l)
-Arrows {e = e} [] τ T = Level.Lift e τ
-Arrows (h ∷ t) τ T = T h → (Arrows t τ T)
-
+Arrows' : ∀ {t e l n} {Type : Set t} → Vec Type n → Set (e ⊔ l) → (T : Type → Set e) → Set (e ⊔ l)
+Arrows' {e = e} [] τ T = τ
+Arrows' {l = l} (h ∷ t) τ T = T h → Arrows' {l = l} t τ T
 
 record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l ⊔ s)) where
   field
@@ -24,13 +23,14 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     Variable : Type → Set v
     Function : ∀ n → Vec Type n → Type → Set f
     Label : Set l
-    Statement : Set s
+    Statement : Set (v ⊔ s)
 
     -- TODO: consider if Statement : Maybe Type → Set s -- Is it possible to define a refinement of this record type with this restriction? It should be.
     
-  infixr 0 _⇉_
-  _⇉_ : ∀ {n l} → Vec Type n → Set l → Set (v ⊔ l)
-  x ⇉ y = Arrows x y Variable
+  infixr 0 _⇉Statement
+
+  _⇉Statement : ∀ {n} → Vec Type n → Set (v ⊔ s)
+  x ⇉Statement = Arrows' {l = s} x Statement Variable
 
   field
     Int : Type
@@ -66,8 +66,8 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     skip : Statement
     assignment : ∀ {τ} → Variable τ → Expr τ → Statement
     mem-write : ∀ {τ} → Expr Int → Expr τ → Statement
-    func-call : ∀ { n A β } → Maybe (Variable β) → Function n A β → A ⇉ Statement
-    tailcall : ∀ { n A β } → Function n A β → A ⇉ Statement
+    func-call : ∀ { n A β } → Maybe (Variable β) → Function n A β → A ⇉Statement
+    tailcall : ∀ { n A β } → Function n A β → A ⇉Statement
     return : ∀ {τ} → Maybe (Expr τ) → Statement
     sequence : Statement → Statement → Statement
     if-else : Expr Int → Statement → Statement → Statement
@@ -78,7 +78,7 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     label : Label → Statement → Statement
     goto : Label → Statement
 
-    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params Vec.++ vars ⇉ Statement → Function n params ret
+    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params Vec.++ vars ⇉Statement → Function n params ret
 
   _⇒_ : ∀ {n} → Vec Type n → Type → Set f
   _⇒_ {n} = Function n

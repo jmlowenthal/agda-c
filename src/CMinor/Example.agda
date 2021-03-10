@@ -33,13 +33,11 @@ average : (Int ∷ Int ∷ []) ⇒ Float
 average = define-function _ _ (Float ∷ Int ∷ []) 0
   (λ arr sz →
     (λ s i →
-      Level.lift (
-        (block (loop (
-          sequence
-            (if-else (cmp->= (id i) (id sz)) (exit 0) skip)
-            (sequence
-              (assignment s (addf (id s) (floatofint (mem-read Int (add (id arr) (mul (id i) (cst (cst-int 4ᵇ))))))))
-              (assignment i (add (id i) (cst (cst-int 1ᵇ))))))))
-      )
+      (block (loop (
+        sequence
+          (if-else (cmp->= (id i) (id sz)) (exit 0) skip)
+          (sequence
+            (assignment s (addf (id s) (floatofint (mem-read Int (add (id arr) (mul (id i) (cst (cst-int 4ᵇ))))))))
+            (assignment i (add (id i) (cst (cst-int 1ᵇ))))))))
     )
   )
