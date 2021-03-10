@@ -28,7 +28,6 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     -- TODO: consider if Statement : Maybe Type → Set s -- Is it possible to define a refinement of this record type with this restriction? It should be.
     
   infixr 0 _⇉Statement
-
   _⇉Statement : ∀ {n} → Vec Type n → Set (v ⊔ s)
   x ⇉Statement = Arrows' {l = s} x Statement Variable
 
