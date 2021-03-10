@@ -1,5 +1,6 @@
 open import CMinor.Lang.Lang
 open import Data.Vec
+open import Data.Product
 
 open import Data.Nat.Binary using (4ᵇ ; 1ᵇ)
 import Level
@@ -31,13 +32,11 @@ open Lang L
 -- The syntax of our CMinor impl is very cumbersome (for now)
 average : (Int ∷ Int ∷ []) ⇒ Float
 average = define-function _ _ (Float ∷ Int ∷ []) 0
-  (λ arr sz →
-    (λ s i →
-      (block (loop (
-        sequence
-          (if-else (cmp->= (id i) (id sz)) (exit 0) skip)
-          (sequence
-            (assignment s (addf (id s) (floatofint (mem-read Int (add (id arr) (mul (id i) (cst (cst-int 4ᵇ))))))))
-            (assignment i (add (id i) (cst (cst-int 1ᵇ))))))))
-    )
-  )
+  (λ { (arr , sz , s , i) →
+    block (loop (
+      sequence
+        (if-else (cmp->= (id i) (id sz)) (exit 0) skip)
+        (sequence
+          (assignment s (addf (id s) (floatofint (mem-read Int (add (id arr) (mul (id i) (cst (cst-int 4ᵇ))))))))
+          (assignment i (add (id i) (cst (cst-int 1ᵇ)))))))
+  })

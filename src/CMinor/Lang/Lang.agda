@@ -12,8 +12,16 @@ open import Level as Level using (Level; suc; _⊔_)
 module CMinor.Lang.Lang where
 
 Arrows' : ∀ {t e l n} {Type : Set t} → Vec Type n → Set (e ⊔ l) → (T : Type → Set e) → Set (e ⊔ l)
-Arrows' {e = e} [] τ T = τ
+Arrows' [] τ T = τ
 Arrows' {l = l} (h ∷ t) τ T = T h → Arrows' {l = l} t τ T
+
+Arrows'' : ∀ {t e l n} {A : Set t} → Vec A n → Set (e ⊔ l) → (A → Set e) → Set (e ⊔ l)
+Arrows'' [] τ T = τ
+Arrows'' {e = e} {l} v@(_ ∷ _) τ T = helper (Vec.map T v) → τ
+  where
+    helper : ∀ {n} → Vec (Set _) (ℕ.suc n) → Set e
+    helper (h ∷ []) = h
+    helper (h ∷ t@(_ ∷ _)) = h × helper t
 
 record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l ⊔ s)) where
   field
@@ -29,7 +37,8 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     
   infixr 0 _⇉Statement
   _⇉Statement : ∀ {n} → Vec Type n → Set (v ⊔ s)
-  x ⇉Statement = Arrows' {l = s} x Statement Variable
+  x ⇉Statement = Arrows'' {l = s} x Statement Variable
+  -- x ⇉Statement = Arrows' {l = s} x Statement Variable
 
   field
     Int : Type
@@ -77,7 +86,7 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
     label : Label → Statement → Statement
     goto : Label → Statement
 
-    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → params Vec.++ vars ⇉Statement → Function n params ret
+    define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → (params Vec.++ vars) ⇉Statement → Function n params ret
 
   _⇒_ : ∀ {n} → Vec Type n → Type → Set f
   _⇒_ {n} = Function n
