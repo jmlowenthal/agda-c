@@ -13,20 +13,35 @@ module CMinor.Semantics.NaturalExpressionSemantics where
 _mod2^32 : ℕᵇ → ℕᵇ
 _mod2^32 n = ℕᵇ.fromℕ ((ℕᵇ.toℕ n) ℕ÷.% (2 ℕ.^ 32))
 
-record NaturalExpressionSemantics (l₁ l₂ l₃ l₄ l₅ l₆ l₇ v g s e m j₁ j₂ j₃ t : Level) (ℒ : Lang l₁ l₂ l₃ l₄ l₅ l₆ l₇) : Set (Level.suc (l₁ ⊔ l₂ ⊔ l₃ ⊔ l₄ ⊔ v ⊔ g ⊔ s ⊔ e ⊔ m ⊔ j₁ ⊔ j₂ ⊔ j₃ ⊔ t)) where
+
+record NaturalExpressionSemanticsLevels : Set where
+  field
+    ValueLevel GlobalEnvironmentLevel StackLevel EnvironmentLevel MemoryStateLevel
+      JudgementLevel₁ JudgementLevel₂ JudgementLevel₃ TruthynessLevel : Level
+  SuperLevel =
+    ValueLevel ⊔ GlobalEnvironmentLevel ⊔ StackLevel ⊔ EnvironmentLevel ⊔ MemoryStateLevel
+    ⊔ JudgementLevel₁ ⊔ JudgementLevel₂ ⊔ JudgementLevel₃ ⊔ TruthynessLevel
+
+
+record NaturalExpressionSemantics
+  {langLevels} (levels : NaturalExpressionSemanticsLevels)
+  (ℒ : Lang langLevels)
+  : Set (Level.suc (LangLevels.SuperLevel langLevels ⊔ NaturalExpressionSemanticsLevels.SuperLevel levels))
+  where
 
   open Lang ℒ
+  open NaturalExpressionSemanticsLevels levels
 
   field
-    Value : Type → Set v
-    GlobalEnvironment : Set g
-    Stack : Set s
-    Environment : Set e
-    MemoryState : Set m
+    Value : Type → Set ValueLevel
+    GlobalEnvironment : Set GlobalEnvironmentLevel
+    Stack : Set StackLevel
+    Environment : Set EnvironmentLevel
+    MemoryState : Set MemoryStateLevel
 
-    _,_,_,_⊢_⇒_ : ∀ {α} → GlobalEnvironment → Stack → Environment → MemoryState → Expr α → Value α → Set j₁    
-    _↦_∈_ : ∀ {α} → Variable α → Value α → Environment  → Set j₂
-    _↦_∈_,_ : ∀ {α} → ℕᵇ → Value α → MemoryState → Stack → Set j₃
+    _,_,_,_⊢_⇒_ : ∀ {α} → GlobalEnvironment → Stack → Environment → MemoryState → Expr α → Value α → Set JudgementLevel₁
+    _↦_∈_ : ∀ {α} → Variable α → Value α → Environment  → Set JudgementLevel₂
+    _↦_∈_,_ : ∀ {α} → ℕᵇ → Value α → MemoryState → Stack → Set JudgementLevel₃
 
     eval-constant : ∀ {α} → GlobalEnvironment → Stack → Constant α → Value α
     eval-unop : ∀ {α β} → (Expr α → Expr β) → Value α → Value β
@@ -37,8 +52,8 @@ record NaturalExpressionSemantics (l₁ l₂ l₃ l₄ l₅ l₆ l₇ v g s e m 
     -- symbol : {!!} → {!!} → Value {!!}
     ⌊ptr_,_⌋ : Stack → ℕᵇ → Value Int
 
-    istrue : Value Int → Set t
-    isfalse : Value Int → Set t
+    istrue : Value Int → Set TruthynessLevel
+    isfalse : Value Int → Set TruthynessLevel
 
     istrue-ptr : ∀ b δ → istrue (⌊ptr b , δ ⌋)
     istrue-int-true : ∀ n → n ≡ 0ᵇ → istrue (⌊int n ⌋)

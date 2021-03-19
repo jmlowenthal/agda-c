@@ -12,36 +12,28 @@ open import Data.Nat.Binary as ℕᵇ using (ℕᵇ)
 open import Relation.Binary.PropositionalEquality using (_≡_)
 open import Relation.Nullary using (¬_)
 
+open import CMinor.Semantics.SmallStepLabelledProgramSemantics.Definitions
+
 module CMinor.Semantics.SmallStepLabelledProgramSemantics where
 
-record SmallStepLabelledProgramSemantics (l₁ l₂ l₃ l₄ l₅ l₆ l₇ e₁ e₂ e₃ e₄ e₅ e₆ e₇ e₈ e₉ s k l t : Level) (𝓛 : Lang l₁ l₂ l₃ l₄ l₅ l₆ l₇) (𝓔 : NaturalExpressionSemantics _ _ _ _ _ _ _ e₁ e₂ e₃  e₄ e₅ e₆ e₇ e₈ e₉ 𝓛) : Set (Level.suc (l₁ ⊔ l₂ ⊔ l₃ ⊔ l₄ ⊔ l₅ ⊔ l₆ ⊔ l₇ ⊔ e₁ ⊔ e₂ ⊔ e₃ ⊔ e₄ ⊔ e₅ ⊔ e₆ ⊔ e₇ ⊔ e₈ ⊔ e₉ ⊔ s ⊔ k ⊔ l ⊔ t)) where
+record SmallStepLabelledProgramSemantics
+  {langLevels exprLevels}
+  {e₁ e₂ e₃ e₄ e₅ e₆ e₇ e₈ e₉ : Level}
+  (i s k l t : Level)
+  (𝓛 : Lang langLevels)
+  (𝓔 : NaturalExpressionSemantics exprLevels 𝓛)
+  : Set (Level.suc (i ⊔ s ⊔ k ⊔ l ⊔ t ⊔ LangLevels.SuperLevel langLevels ⊔ NaturalExpressionSemanticsLevels.SuperLevel exprLevels))
+  where
 
   open Lang 𝓛
   open NaturalExpressionSemantics 𝓔
 
   field
-    Id? : Set -- TODO
+    definitions : Definitions i k s l t 𝓛 𝓔
 
-    -- CONTINUATIONS
-    Continuation : Set k
-    stop : Continuation  -- initial continuation
-    cons : Statement → Continuation → Continuation  -- continue with s, then do as k
-    endblock : Continuation → Continuation  -- leave a block, then do as k
-    returnto : ∀ { n params ret } → Id? → Function n params ret → Stack → Environment → Continuation → Continuation  -- return to caller
+  open Definitions definitions
 
-    -- STATES
-    ProgramState : Set s
-    𝓢 : ∀ { n params ret } → Function n params ret → Statement → Continuation → Stack → Environment → MemoryState → ProgramState
-    𝓒 : {!Fd!} → List (∃[ α ] (Value α)) → Continuation → MemoryState → ProgramState
-    𝓡 : ∀ { α } → Value α → Continuation → MemoryState → ProgramState
-
-    -- TRANSITION LABELS
-    TransitionLabel : Set l
-    ε : TransitionLabel
-
-    -- TRANSITIONS
-    _⊢_~[_]↝_ : GlobalEnvironment → ProgramState → TransitionLabel → ProgramState → Set t
-
+  field
     -- callcont
     callcont : Continuation → Continuation
     callcont-cons : ∀ s k → callcont (cons s k) ≡ callcont k

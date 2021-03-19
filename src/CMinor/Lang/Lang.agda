@@ -19,21 +19,32 @@ Arrows {e = e} {l} {ℕ.suc _} v@(_ ∷ _) τ T = helper (Vec.map T v) → τ
     helper (h ∷ []) = h
     helper (h ∷ t@(_ ∷ _)) = h × helper t
 
-record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l ⊔ s)) where
+
+record LangLevels : Set where
   field
-    Type : Set t
-    Constant : Type → Set c
-    Expr : Type → Set e
-    Variable : Type → Set v
-    Function : ∀ n → Vec Type n → Type → Set f
-    Label : Set l
-    Statement : Set (v ⊔ s)
+    TypeLevel ConstantLevel ExprLevel VariableLevel FunctionLevel
+      LabelLevel StatementLevel : Level
+  SuperLevel =
+    TypeLevel ⊔ ConstantLevel ⊔ ExprLevel ⊔ VariableLevel ⊔ FunctionLevel
+    ⊔ LabelLevel ⊔ StatementLevel
+
+
+record Lang (levels : LangLevels) : Set (suc (LangLevels.SuperLevel levels)) where
+  open LangLevels levels
+  field
+    Type : Set TypeLevel
+    Constant : Type → Set ConstantLevel
+    Expr : Type → Set ExprLevel
+    Variable : Type → Set VariableLevel
+    Function : ∀ n → Vec Type n → Type → Set FunctionLevel
+    Label : Set LabelLevel
+    Statement : Set (VariableLevel ⊔ StatementLevel)
 
     -- TODO: consider if Statement : Maybe Type → Set s -- Is it possible to define a refinement of this record type with this restriction? It should be.
     
   infixr 0 _⇉Statement
-  _⇉Statement : ∀ {n} → Vec Type n → Set (v ⊔ s)
-  x ⇉Statement = Arrows {l = s} x Statement Variable
+  _⇉Statement : ∀ {n} → Vec Type n → Set (VariableLevel ⊔ StatementLevel)
+  x ⇉Statement = Arrows {l = StatementLevel} x Statement Variable
 
   field
     Int : Type
@@ -83,6 +94,6 @@ record Lang (t v c e f l s : Level) : Set (suc (t ⊔ v ⊔ c ⊔ e ⊔ f ⊔ l 
 
     define-function : ∀ {n m} (params : Vec Type n) ret (vars : Vec Type m) → ℕ → (params Vec.++ vars) ⇉Statement → Function n params ret
 
-  _⇒_ : ∀ {n} → Vec Type n → Type → Set f
+  _⇒_ : ∀ {n} → Vec Type n → Type → Set FunctionLevel
   _⇒_ {n} = Function n
 
