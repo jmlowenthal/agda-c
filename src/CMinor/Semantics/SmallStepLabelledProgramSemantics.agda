@@ -18,18 +18,17 @@ module CMinor.Semantics.SmallStepLabelledProgramSemantics where
 
 record SmallStepLabelledProgramSemantics
   {langLevels exprLevels}
-  {e₁ e₂ e₃ e₄ e₅ e₆ e₇ e₈ e₉ : Level}
-  (i s k l t : Level)
+  (definitionsLevel : DefinitionsLevels)
   (𝓛 : Lang langLevels)
   (𝓔 : NaturalExpressionSemantics exprLevels 𝓛)
-  : Set (Level.suc (i ⊔ s ⊔ k ⊔ l ⊔ t ⊔ LangLevels.SuperLevel langLevels ⊔ NaturalExpressionSemanticsLevels.SuperLevel exprLevels))
+  : Set (Level.suc (DefinitionsLevels.SuperLevel definitionsLevel ⊔ LangLevels.SuperLevel langLevels ⊔ NaturalExpressionSemanticsLevels.SuperLevel exprLevels))
   where
 
   open Lang 𝓛
   open NaturalExpressionSemantics 𝓔
 
   field
-    definitions : Definitions i k s l t 𝓛 𝓔
+    definitions : Definitions definitionsLevel 𝓛 𝓔
 
   open Definitions definitions
 
